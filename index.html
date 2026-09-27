@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nexus LP</title>
+<style>
+  :root{
+    --bg:#171512; --panel:#1e1c19; --panel-2:#252220; --border:#33302b;
+    --ink:#f2ede6; --sub:#9b9186; --accent:#e07a4e;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%; margin:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    display:flex; overflow:hidden;
+  }
+
+  #sidebar{
+    position:fixed; inset:0 auto 0 0; width:280px; background:var(--panel);
+    border-right:1px solid var(--border); padding:20px 16px;
+    transform:translateX(-100%); transition:transform .25s ease; z-index:20;
+    display:flex; flex-direction:column;
+  }
+  #sidebar.open{transform:translateX(0);}
+  #sidebar h1{font-family:Georgia,'Times New Roman',serif; font-size:1.5rem; margin:4px 0 24px;}
+  .nav-item{display:flex; align-items:center; gap:12px; padding:10px 8px; border-radius:10px; color:var(--sub); font-size:.95rem; background:none; border:none; width:100%; text-align:left;}
+  .nav-item:active{background:var(--panel-2);}
+  .sidebar-footer{margin-top:auto; display:flex; align-items:center; gap:10px;}
+  .avatar{width:34px; height:34px; border-radius:50%; background:var(--accent); color:#241a05; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem;}
+  .recent-item{width:100%; text-align:left; background:none; border:none; color:#cfc9c0; font-size:.88rem; padding:9px 8px; border-radius:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; justify-content:space-between; align-items:center; gap:6px;}
+  .recent-item:active{background:var(--panel-2);}
+  .recent-item.active{background:var(--panel-2); color:var(--ink);}
+  .recent-item .del{opacity:.5; flex-shrink:0;}
+
+  #overlay{position:fixed; inset:0; background:#00000080; opacity:0; pointer-events:none; transition:opacity .25s; z-index:15;}
+  #overlay.show{opacity:1; pointer-events:auto;}
+
+  main{flex:1; display:flex; flex-direction:column; height:100vh; position:relative;}
+  header{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top,0px));}
+  .icon-btn{width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:var(--sub); background:none; border:none;}
+  .icon-btn svg{width:20px; height:20px;}
+
+  #chatArea{flex:1; overflow-y:auto; padding:0 20px; display:flex; flex-direction:column;}
+  .splash{margin:auto; text-align:center;}
+  .mark{width:52px; height:52px; margin:0 auto 18px; border-radius:16px; background:linear-gradient(135deg, var(--accent), #f2a35f);}
+  .splash h2{font-family:Georgia,'Times New Roman',serif; font-size:1.7rem; font-weight:400; margin:0;}
+  .splash p{color:var(--sub); font-size:.85rem; margin-top:8px;}
+
+  .msg-wrap{margin-bottom:18px; animation: msgIn .25s ease;}
+  @keyframes msgIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .msg{max-width:85%; padding:11px 15px; border-radius:16px; font-size:.93rem; line-height:1.5; white-space:pre-wrap;}
+  .msg.user{align-self:flex-end; background:var(--accent); color:#241a05; border-bottom-right-radius:4px; margin-left:auto;}
+  .msg.ai{align-self:flex-start; background:var(--panel-2); border-bottom-left-radius:4px;}
+  .tag{display:block; font-size:.72rem; color:#c7a68d; margin-bottom:3px;}
+  .actions{display:flex; gap:14px; margin-top:6px; padding-left:4px;}
+  .actions button{background:none; border:none; color:var(--sub); padding:2px; transition:transform .1s;}
+  .actions button:active{transform:scale(.85);}
+  .actions button svg{width:16px; height:16px;}
+  .actions button.active{color:var(--accent);}
+  .disclaimer{color:var(--sub); font-size:.72rem; text-align:center; padding:6px 0 2px;}
+  .typing-dots span{display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--sub); margin-right:3px; animation: dotPulse 1.2s infinite;}
+  .typing-dots span:nth-child(2){animation-delay:.2s;}
+  .typing-dots span:nth-child(3){animation-delay:.4s;}
+  @keyframes dotPulse{ 0%,60%,100%{opacity:.3; transform:scale(.8);} 30%{opacity:1; transform:scale(1);} }
+  .mark{animation: markPulse 3s ease-in-out infinite;}
+  @keyframes markPulse{ 0%,100%{box-shadow:0 0 0 0 #e07a4e33;} 50%{box-shadow:0 0 0 8px #e07a4e00;} }
+  .attach-preview{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:6px 10px; margin-bottom:8px; font-size:.8rem; color:var(--sub);}
+  .attach-preview img{width:28px; height:28px; object-fit:cover; border-radius:6px;}
+  .attach-preview .rm{margin-left:auto; color:#e2604f;}
+
+  #composer{padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));}
+  .input-shell{background:var(--panel-2); border:1px solid var(--border); border-radius:20px; padding:12px 14px;}
+  #textInput{width:100%; background:none; border:none; color:var(--ink); font-size:.95rem; resize:none; outline:none; font-family:inherit; max-height:120px;}
+  #textInput::placeholder{color:var(--sub);}
+  .input-row{display:flex; align-items:center; justify-content:space-between; margin-top:8px;}
+  .pill{display:flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; font-size:.8rem;}
+  #sendBtn{width:38px; height:38px; border-radius:50%; background:var(--accent); border:none; display:flex; align-items:center; justify-content:center; color:#241a05;}
+  #sendBtn svg{width:18px; height:18px;}
+
+  /* ---- tela de configurações ---- */
+  #settingsScreen{
+    position:fixed; inset:0; background:var(--bg); z-index:30; display:none;
+    flex-direction:column; padding:20px; padding-top:calc(20px + env(safe-area-inset-top,0px));
+  }
+  #settingsScreen.open{display:flex;}
+  #settingsScreen h2{font-size:1.1rem; margin:10px 0 4px;}
+  #settingsScreen p.hint{color:var(--sub); font-size:.8rem; margin:0 0 20px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:.8rem; color:var(--sub); margin-bottom:6px;}
+  .field input{width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--ink); border-radius:10px; padding:10px 12px; font-size:.9rem;}
+  .save-btn{background:var(--accent); color:#241a05; border:none; border-radius:10px; padding:12px; font-weight:600; width:100%; margin-top:6px;}
+  .back-row{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+
+  #lockScreen{
+    position:fixed; inset:0; background:var(--bg); z-index:40; display:none;
+    flex-direction:column; align-items:center; justify-content:center; padding:20px;
+  }
+  #lockScreen.open{display:flex;}
+  #lockScreen input{background:var(--panel-2); border:1px solid var(--border); color:var(--ink); border-radius:10px; padding:12px 14px; font-size:1rem; text-align:center; width:220px; margin:16px 0;}
+  #lockScreen p{color:var(--sub); font-size:.85rem;}
+
+  .fullscreen{
+    position:fixed; inset:0; background:var(--bg); z-index:25; display:none;
+    flex-direction:column; padding:20px; padding-top:calc(20px + env(safe-area-inset-top,0px)); overflow-y:auto;
+  }
+  .fullscreen.open{display:flex;}
+
+  .code-block-wrap{margin:10px 0; border-radius:10px; overflow:hidden; border:1px solid #ffffff22;}
+  .code-block-head{
+    display:flex; justify-content:space-between; align-items:center; background:#00000030;
+    padding:6px 10px; font-size:.72rem; color:var(--sub); font-family:monospace;
+  }
+  .run-code-btn{background:var(--accent); color:#241a05; border:none; border-radius:6px; padding:4px 10px; font-size:.72rem; font-weight:600;}
+  .code-block{
+    margin:0; padding:12px; background:#00000030; color:#cfe8d0; font-family:'SFMono-Regular',Consolas,monospace;
+    font-size:.8rem; overflow-x:auto; white-space:pre;
+  }
+</style>
+</head>
+<body>
+
+<div id="overlay"></div>
+<aside id="sidebar">
+  <h1>Nexus LP</h1>
+  <button class="nav-item" id="newConvoBtn">✚ Nova conversa</button>
+  <button class="nav-item" id="openAllConvos">💬 Todas as conversas</button>
+  <button class="nav-item" id="openSettings">⚙ Configurações</button>
+  <div style="color:var(--sub); font-size:.78rem; margin:20px 0 8px 8px;">recentes</div>
+  <div id="recentsList" style="overflow-y:auto; flex:1;"></div>
+  <button class="sidebar-footer" id="openProfile" style="background:none; border:none; cursor:pointer;">
+    <div class="avatar" id="profileAvatarBtn">LP</div>
+    <span style="font-size:.85rem; color:var(--sub);" id="profileNameLabel">Laiton</span>
+  </button>
+</aside>
+
+<main>
+  <header>
+    <button class="icon-btn" id="menuBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <span style="font-size:.85rem; color:var(--sub);">Nexus LP</span>
+    <span style="width:34px;"></span>
+  </header>
+
+  <div id="chatArea">
+    <div class="splash" id="splash">
+      <div class="mark"></div>
+      <h2>Nexus LP</h2>
+    </div>
+  </div>
+
+  <div id="composer">
+    <div id="attachPreviewWrap"></div>
+    <div class="input-shell">
+      <textarea id="textInput" rows="1" placeholder="Conversa com o Nexus..."></textarea>
+      <div class="input-row">
+        <div class="pill">🧠 Inteligência coletiva</div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <button class="icon-btn" id="attachBtn" style="color:var(--sub);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <input type="file" id="fileInput" accept="image/*,.txt,.md,.csv,.json" style="display:none;">
+          <button class="icon-btn" id="micBtn" style="color:var(--sub);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/></svg>
+          </button>
+          <button id="sendBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- tela: todas as conversas -->
+<div id="allConvosScreen" class="fullscreen">
+  <div class="back-row">
+    <button class="icon-btn" id="closeAllConvos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span style="font-size:.9rem;">Todas as conversas</span>
+  </div>
+  <div class="field"><input type="text" id="searchConvos" placeholder="Buscar conversa..."></div>
+  <div id="allConvosList"></div>
+</div>
+
+<!-- tela: perfil -->
+<div id="profileScreen" class="fullscreen">
+  <div class="back-row">
+    <button class="icon-btn" id="closeProfile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span style="font-size:.9rem;">Perfil</span>
+  </div>
+  <div style="text-align:center; margin:20px 0;">
+    <div class="avatar" id="profileAvatarBig" style="width:64px; height:64px; font-size:1.4rem; margin:0 auto;">LP</div>
+  </div>
+  <div class="field">
+    <label>Seu nome</label>
+    <input type="text" id="profileNameInput" placeholder="Como quer ser chamado">
+  </div>
+  <button class="save-btn" id="saveProfile">Salvar</button>
+</div>
+
+<!-- tela de configurações, só chega aqui pelo menu -->
+<div id="settingsScreen">
+  <div class="back-row">
+    <button class="icon-btn" id="closeSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span style="font-size:.9rem;">Configurações</span>
+  </div>
+  <h2>Chaves de API</h2>
+  <p class="hint">Ficam guardadas só neste navegador (localStorage), nunca em nenhum servidor. Qualquer pessoa com acesso físico a este aparelho e a este navegador pode vê-las — não use num dispositivo compartilhado.</p>
+  <div class="field">
+    <label>Claude (Anthropic API key)</label>
+    <input type="password" id="keyClaude" placeholder="sk-ant-...">
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="nav-item" data-test="claude" style="border:1px solid var(--border); border-radius:8px; justify-content:center;">Testar conexão</button>
+      <button class="nav-item" data-clear="claude" style="border:1px solid var(--border); border-radius:8px; justify-content:center; color:#e2604f;">Apagar</button>
+    </div>
+    <p class="hint" id="statusClaude" style="margin:6px 0 0;"></p>
+  </div>
+  <div class="field">
+    <label>Gemini (Google API key)</label>
+    <input type="password" id="keyGemini" placeholder="AIza...">
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="nav-item" data-test="gemini" style="border:1px solid var(--border); border-radius:8px; justify-content:center;">Testar conexão</button>
+      <button class="nav-item" data-clear="gemini" style="border:1px solid var(--border); border-radius:8px; justify-content:center; color:#e2604f;">Apagar</button>
+    </div>
+    <p class="hint" id="statusGemini" style="margin:6px 0 0;"></p>
+  </div>
+  <button class="save-btn" id="saveKeys">Salvar</button>
+
+  <h2 style="margin-top:28px;">Outros provedores</h2>
+  <p class="hint">Adicione qualquer serviço compatível com o formato "OpenAI Chat Completions" (Mistral, Groq, DeepSeek, xAI/Grok, Together, Perplexity, etc.) — é o padrão que a maioria segue.</p>
+  <div id="customProviders"></div>
+  <button class="nav-item" id="addProvider" style="border:1px dashed var(--border); border-radius:10px; justify-content:center; margin-top:6px;">+ Adicionar provedor</button>
+
+  <p class="hint" style="margin-top:14px;">ChatGPT não está disponível nesta versão sem servidor — a OpenAI bloqueia chamadas diretas do navegador, com ou sem chave.</p>
+
+  <h2 style="margin-top:28px;">Backup</h2>
+  <div style="display:flex; gap:8px;">
+    <button class="nav-item" id="exportConfig" style="border:1px solid var(--border); border-radius:8px; justify-content:center;">Exportar configuração</button>
+    <label class="nav-item" style="border:1px solid var(--border); border-radius:8px; justify-content:center; text-align:center; cursor:pointer;">
+      Importar
+      <input type="file" id="importConfig" accept="application/json" style="display:none;">
+    </label>
+  </div>
+  <p class="hint" style="margin-top:8px;">O arquivo exportado contém suas chaves em texto simples — guarde com o mesmo cuidado que teria com uma senha.</p>
+
+  <h2 style="margin-top:28px;">Trocar senha</h2>
+  <div class="field">
+    <input type="password" id="newPasswordField" placeholder="nova senha">
+  </div>
+  <button class="save-btn" id="changePassword">Salvar nova senha</button>
+</div>
+
+<!-- trava por senha (cada instalação define a própria) -->
+<div id="lockScreen">
+  <div class="mark" style="width:44px;height:44px;"></div>
+  <p id="lockTitle">Digite a senha pra acessar as configurações</p>
+  <input type="password" id="lockInput" placeholder="senha">
+  <input type="password" id="lockInputConfirm" placeholder="confirme a senha" style="display:none;">
+  <button class="save-btn" id="lockSubmit" style="width:220px;">Entrar</button>
+  <p id="lockError" style="color:#e2604f; display:none;">senha incorreta</p>
+</div>
+
+<script>
+const chatArea = document.getElementById('chatArea');
+const input = document.getElementById('textInput');
+
+function getPassword(){ return localStorage.getItem('nexuslp_password') || ''; }
+function hasPassword(){ return !!getPassword(); }
+
+function getKeys(){
+  return {
+    claude: localStorage.getItem('nexuslp_claude_key') || '',
+    gemini: localStorage.getItem('nexuslp_gemini_key') || ''
+  };
+}
+function getCustomProviders(){
+  try{ return JSON.parse(localStorage.getItem('nexuslp_custom_providers') || '[]'); }
+  catch(e){ return []; }
+}
+function saveCustomProviders(list){
+  localStorage.setItem('nexuslp_custom_providers', JSON.stringify(list));
+}
+function renderCustomProviders(){
+  const list = getCustomProviders();
+  const el = document.getElementById('customProviders');
+  el.innerHTML = list.map((p, i) => `
+    <div class="field" style="border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px;">
+      <label>Nome</label>
+      <input type="text" data-p="name" data-i="${i}" value="${p.name || ''}" placeholder="ex: Groq">
+      <label style="margin-top:8px;">URL base (até /chat/completions)</label>
+      <input type="text" data-p="url" data-i="${i}" value="${p.url || ''}" placeholder="https://api.groq.com/openai/v1/chat/completions">
+      <label style="margin-top:8px;">Modelo</label>
+      <input type="text" data-p="model" data-i="${i}" value="${p.model || ''}" placeholder="ex: llama-3.3-70b-versatile">
+      <label style="margin-top:8px;">Chave de API</label>
+      <input type="password" data-p="key" data-i="${i}" value="${p.key || ''}" placeholder="chave secreta">
+      <button class="nav-item" data-remove-provider="${i}" style="color:#e2604f; margin-top:8px;">Remover</button>
+    </div>`).join('') || '<p class="hint">Nenhum provedor extra adicionado ainda.</p>';
+
+  el.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const list = getCustomProviders();
+      list[inp.dataset.i][inp.dataset.p] = inp.value;
+      saveCustomProviders(list);
+    });
+  });
+  el.querySelectorAll('[data-remove-provider]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const list = getCustomProviders();
+      list.splice(Number(btn.dataset.removeProvider), 1);
+      saveCustomProviders(list);
+      renderCustomProviders();
+    });
+  });
+}
+document.getElementById('addProvider').addEventListener('click', ()=>{
+  const list = getCustomProviders();
+  list.push({ name:'', url:'', model:'', key:'' });
+  saveCustomProviders(list);
+  renderCustomProviders();
+});
+
+// ---- conversas: histórico completo + persistência ----
+function loadConversations(){
+  try{ return JSON.parse(localStorage.getItem('nexuslp_conversations') || '[]'); }
+  catch(e){ return []; }
+}
+function saveConversations(list){
+  localStorage.setItem('nexuslp_conversations', JSON.stringify(list));
+}
+
+let currentConversationId = null;
+let currentMessages = []; // [{role:'user'|'assistant', content:'...'}]
+let lastUserMessage = '';
+
+function makeTitle(firstMessage){
+  const clean = firstMessage.trim().replace(/\s+/g,' ');
+  return clean.length > 42 ? clean.slice(0, 42) + '…' : clean;
+}
+
+function persistCurrentConversation(){
+  if(currentMessages.length === 0) return;
+  const list = loadConversations();
+  const firstUserMsg = currentMessages.find(m => m.role === 'user');
+  const title = firstUserMsg ? makeTitle(firstUserMsg.content) : 'Conversa';
+  const idx = list.findIndex(c => c.id === currentConversationId);
+  const record = { id: currentConversationId, title, messages: currentMessages, updatedAt: Date.now() };
+  if(idx >= 0) list[idx] = record; else list.unshift(record);
+  saveConversations(list);
+  renderRecents();
+}
+
+function renderRecents(){
+  const list = loadConversations().sort((a,b) => b.updatedAt - a.updatedAt);
+  const el = document.getElementById('recentsList');
+  el.innerHTML = list.map(c => `
+    <button class="recent-item ${c.id === currentConversationId ? 'active' : ''}" data-open-convo="${c.id}">
+      <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.title)}</span>
+      <span class="del" data-del-convo="${c.id}">✕</span>
+    </button>`).join('');
+  el.querySelectorAll('[data-open-convo]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-del-convo]')) return;
+      loadConversationById(btn.dataset.openConvo);
+    });
+  });
+  el.querySelectorAll('[data-del-convo]').forEach(span=>{
+    span.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const list = loadConversations().filter(c => c.id !== span.dataset.delConvo);
+      saveConversations(list);
+      if(span.dataset.delConvo === currentConversationId) startNewConversation();
+      renderRecents();
+    });
+  });
+}
+
+function loadConversationById(id){
+  const list = loadConversations();
+  const record = list.find(c => c.id === id);
+  if(!record) return;
+  currentConversationId = record.id;
+  currentMessages = record.messages;
+  chatArea.innerHTML = '';
+  currentMessages.forEach(m=>{
+    if(m.role === 'user') addUserBubble(m.content, false);
+    else addAiBubble(m.content, 'Nexus LP', false);
+  });
+  const lastUser = [...currentMessages].reverse().find(m => m.role === 'user');
+  lastUserMessage = lastUser ? lastUser.content : '';
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  renderRecents();
+}
+
+function startNewConversation(){
+  currentConversationId = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  currentMessages = [];
+  lastUserMessage = '';
+  chatArea.innerHTML = `<div class="splash" id="splash"><div class="mark"></div><h2>Nexus LP</h2></div>`;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  renderRecents();
+}
+document.getElementById('newConvoBtn').addEventListener('click', startNewConversation);
+startNewConversation();
+renderRecents();
+
+// ---- perfil ----
+function getProfile(){
+  try{ return JSON.parse(localStorage.getItem('nexuslp_profile') || '{}'); }
+  catch(e){ return {}; }
+}
+function applyProfile(){
+  const p = getProfile();
+  const name = p.name || 'Laiton';
+  const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase() || 'LP';
+  document.querySelectorAll('#profileAvatarBtn, #profileAvatarBig').forEach(el => el.textContent = initials);
+  const label = document.getElementById('profileNameLabel');
+  if(label) label.textContent = name;
+}
+applyProfile();
+
+document.getElementById('openProfile').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('profileNameInput').value = getProfile().name || '';
+  document.getElementById('profileScreen').classList.add('open');
+});
+document.getElementById('closeProfile').addEventListener('click', ()=>{
+  document.getElementById('profileScreen').classList.remove('open');
+});
+document.getElementById('saveProfile').addEventListener('click', ()=>{
+  const name = document.getElementById('profileNameInput').value.trim();
+  localStorage.setItem('nexuslp_profile', JSON.stringify({ name }));
+  applyProfile();
+  document.getElementById('profileScreen').classList.remove('open');
+});
+
+// ---- tela: todas as conversas ----
+function renderAllConvos(filter){
+  const list = loadConversations().sort((a,b)=>b.updatedAt - a.updatedAt)
+    .filter(c => !filter || c.title.toLowerCase().includes(filter.toLowerCase()));
+  const el = document.getElementById('allConvosList');
+  el.innerHTML = list.map(c => `
+    <button class="recent-item" data-open-full="${c.id}" style="padding:14px 10px; border-bottom:1px solid var(--border); border-radius:0;">
+      <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.title)}</span>
+      <span class="del" data-del-full="${c.id}">✕</span>
+    </button>`).join('') || '<p class="hint">Nenhuma conversa ainda.</p>';
+  el.querySelectorAll('[data-open-full]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-del-full]')) return;
+      loadConversationById(btn.dataset.openFull);
+      document.getElementById('allConvosScreen').classList.remove('open');
+    });
+  });
+  el.querySelectorAll('[data-del-full]').forEach(span=>{
+    span.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const list = loadConversations().filter(c => c.id !== span.dataset.delFull);
+      saveConversations(list);
+      if(span.dataset.delFull === currentConversationId) startNewConversation();
+      renderAllConvos(document.getElementById('searchConvos').value);
+      renderRecents();
+    });
+  });
+}
+document.getElementById('openAllConvos').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  renderAllConvos('');
+  document.getElementById('allConvosScreen').classList.add('open');
+});
+document.getElementById('closeAllConvos').addEventListener('click', ()=>{
+  document.getElementById('allConvosScreen').classList.remove('open');
+});
+document.getElementById('searchConvos').addEventListener('input', (e)=>{ renderAllConvos(e.target.value); });
+
+// ---- sidebar ----
+document.getElementById('menuBtn').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+});
+document.getElementById('overlay').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+});
+
+// ---- trava: primeira vez cria senha própria, depois só pede pra entrar ----
+document.getElementById('openSettings').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('lockError').style.display = 'none';
+  document.getElementById('lockInput').value = '';
+  document.getElementById('lockInputConfirm').value = '';
+  if(hasPassword()){
+    document.getElementById('lockTitle').textContent = 'Digite a senha pra acessar as configurações';
+    document.getElementById('lockInputConfirm').style.display = 'none';
+  } else {
+    document.getElementById('lockTitle').textContent = 'Primeira vez aqui — crie uma senha pra proteger as configurações deste aparelho';
+    document.getElementById('lockInputConfirm').style.display = 'block';
+  }
+  document.getElementById('lockScreen').classList.add('open');
+});
+
+function openSettingsScreen(){
+  const keys = getKeys();
+  document.getElementById('keyClaude').value = keys.claude;
+  document.getElementById('keyGemini').value = keys.gemini;
+  renderCustomProviders();
+  document.getElementById('settingsScreen').classList.add('open');
+}
+
+document.getElementById('lockSubmit').addEventListener('click', ()=>{
+  const val = document.getElementById('lockInput').value;
+  if(!hasPassword()){
+    const confirm = document.getElementById('lockInputConfirm').value;
+    if(!val || val.length < 4){ document.getElementById('lockError').textContent = 'a senha precisa ter pelo menos 4 caracteres'; document.getElementById('lockError').style.display='block'; return; }
+    if(val !== confirm){ document.getElementById('lockError').textContent = 'as senhas não coincidem'; document.getElementById('lockError').style.display='block'; return; }
+    localStorage.setItem('nexuslp_password', val);
+    document.getElementById('lockScreen').classList.remove('open');
+    openSettingsScreen();
+    return;
+  }
+  if(val === getPassword()){
+    document.getElementById('lockScreen').classList.remove('open');
+    document.getElementById('lockError').style.display = 'none';
+    openSettingsScreen();
+  } else {
+    document.getElementById('lockError').textContent = 'senha incorreta';
+    document.getElementById('lockError').style.display = 'block';
+  }
+});
+
+document.getElementById('changePassword').addEventListener('click', ()=>{
+  const val = document.getElementById('newPasswordField').value;
+  if(!val || val.length < 4){ alert('a nova senha precisa ter pelo menos 4 caracteres'); return; }
+  localStorage.setItem('nexuslp_password', val);
+  document.getElementById('newPasswordField').value = '';
+  alert('senha atualizada.');
+});
+
+// ---- testar conexão / apagar chave ----
+document.querySelectorAll('[data-test]').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const which = btn.dataset.test;
+    const statusEl = document.getElementById('status' + which[0].toUpperCase() + which.slice(1));
+    const key = document.getElementById('key' + which[0].toUpperCase() + which.slice(1)).value.trim();
+    if(!key){ statusEl.textContent = 'cole uma chave antes de testar.'; return; }
+    statusEl.textContent = 'testando...';
+    try{
+      if(which === 'claude') await askClaude([{role:'user', content:'oi'}], key);
+      else await askGemini([{role:'user', content:'oi'}], key);
+      statusEl.textContent = '✅ conectado com sucesso.';
+    }catch(e){
+      statusEl.textContent = '❌ falhou: ' + e.message;
+    }
+  });
+});
+document.querySelectorAll('[data-clear]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const which = btn.dataset.clear;
+    document.getElementById('key' + which[0].toUpperCase() + which.slice(1)).value = '';
+    localStorage.removeItem('nexuslp_' + which + '_key');
+    document.getElementById('status' + which[0].toUpperCase() + which.slice(1)).textContent = 'chave apagada.';
+  });
+});
+
+// ---- exportar / importar configuração ----
+document.getElementById('exportConfig').addEventListener('click', ()=>{
+  const config = {
+    claude: localStorage.getItem('nexuslp_claude_key') || '',
+    gemini: localStorage.getItem('nexuslp_gemini_key') || '',
+    customProviders: getCustomProviders()
+  };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'nexus-lp-config.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importConfig').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const config = JSON.parse(reader.result);
+      if(config.claude) localStorage.setItem('nexuslp_claude_key', config.claude);
+      if(config.gemini) localStorage.setItem('nexuslp_gemini_key', config.gemini);
+      if(config.customProviders) saveCustomProviders(config.customProviders);
+      openSettingsScreen();
+      alert('configuração importada.');
+    }catch(err){ alert('arquivo inválido.'); }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('closeSettings').addEventListener('click', ()=>{
+  document.getElementById('settingsScreen').classList.remove('open');
+});
+document.getElementById('saveKeys').addEventListener('click', ()=>{
+  localStorage.setItem('nexuslp_claude_key', document.getElementById('keyClaude').value.trim());
+  localStorage.setItem('nexuslp_gemini_key', document.getElementById('keyGemini').value.trim());
+  document.getElementById('settingsScreen').classList.remove('open');
+  updateStatusHint();
+});
+
+function updateStatusHint(){
+  // tela inicial fica limpa de propósito — sem dicas de configuração
+}
+updateStatusHint();
+
+// ---- chat ----
+// (chatArea, input, currentMessages e lastUserMessage já declarados no topo do script)
+
+function addUserBubble(text){
+  const splash = document.getElementById('splash');
+  if(splash) splash.remove();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap';
+  wrap.innerHTML = `<div class="msg user">${escapeHtml(text)}</div>`;
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function renderMessageContent(text){
+  // separa texto normal de blocos ```lang ... ```
+  const parts = text.split(/```(\w*)\n?([\s\S]*?)```/g);
+  // split com grupos captura: [texto, lang, code, texto, lang, code, ...]
+  let html = '';
+  for(let i = 0; i < parts.length; i += 3){
+    const plain = parts[i];
+    if(plain) html += escapeHtml(plain);
+    const lang = parts[i+1];
+    const code = parts[i+2];
+    if(code !== undefined){
+      const runnable = /html|javascript|js/i.test(lang || '') || /<html|<!DOCTYPE|<body/i.test(code);
+      const codeId = 'code_' + Math.random().toString(36).slice(2,9);
+      html += `<div class="code-block-wrap">
+        <div class="code-block-head">${lang ? escapeHtml(lang) : 'código'}${runnable ? `<button class="run-code-btn" data-run="${codeId}">▶ Executar</button>` : ''}</div>
+        <pre class="code-block" id="${codeId}">${escapeHtml(code)}</pre>
+      </div>`;
+    }
+  }
+  return html || escapeHtml(text);
+}
+
+function openCodeSandbox(code, lang){
+  const isFullHtml = /<html|<!DOCTYPE/i.test(code);
+  const srcdoc = isFullHtml ? code : `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:sans-serif;margin:12px;}</style></head><body>${/^\s*</.test(code) ? code : `<script>${code}<\/script>`}</body></html>`;
+  const overlay = document.createElement('div');
+  overlay.className = 'fullscreen open';
+  overlay.style.padding = '0';
+  overlay.innerHTML = `
+    <div class="back-row" style="padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top,0px));">
+      <button class="icon-btn" id="closeSandbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <span style="font-size:.9rem;">Executando código</span>
+    </div>
+    <iframe id="sandboxFrame" style="flex:1; border:none; background:#fff;" sandbox="allow-scripts allow-forms allow-modals"></iframe>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#sandboxFrame').srcdoc = srcdoc;
+  overlay.querySelector('#closeSandbox').addEventListener('click', ()=>{ overlay.remove(); });
+}
+
+function addAiBubble(text, answeredBy){
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap';
+  wrap.innerHTML = `
+    <div class="msg ai"><span class="tag">${answeredBy || 'Nexus LP'}</span>${renderMessageContent(text)}</div>
+    <div class="actions">
+      <button data-like title="gostei">👍</button>
+      <button data-dislike title="não gostei">👎</button>
+      <button data-copy title="copiar">📋</button>
+      <button data-regen title="regenerar">🔄</button>
+      <button data-speak title="ouvir">🔊</button>
+    </div>
+    <div class="disclaimer">Nexus LP é IA e pode cometer erros.</div>`;
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  wrap.querySelectorAll('[data-run]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const codeEl = wrap.querySelector('#' + btn.dataset.run);
+      if(codeEl) openCodeSandbox(codeEl.textContent);
+    });
+  });
+
+  wrap.querySelector('[data-copy]').addEventListener('click', ()=>{
+    navigator.clipboard?.writeText(text);
+  });
+  wrap.querySelector('[data-like]').addEventListener('click', function(){ this.classList.toggle('active'); });
+  wrap.querySelector('[data-dislike]').addEventListener('click', function(){ this.classList.toggle('active'); });
+  wrap.querySelector('[data-regen]').addEventListener('click', ()=>{
+    if(currentMessages.length && currentMessages[currentMessages.length-1].role === 'assistant'){
+      currentMessages.pop();
+    }
+    runQuery(wrap);
+  });
+  wrap.querySelector('[data-speak]').addEventListener('click', function(){
+    if(!('speechSynthesis' in window)){ alert('Seu navegador não suporta leitura em voz.'); return; }
+    const btn = this;
+    if(window.speechSynthesis.speaking){
+      window.speechSynthesis.cancel();
+      btn.textContent = '🔊';
+      return;
+    }
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'pt-BR';
+    utter.onstart = ()=>{ btn.textContent = '⏸'; };
+    utter.onend = ()=>{ btn.textContent = '🔊'; };
+    utter.onerror = ()=>{ btn.textContent = '🔊'; };
+    window.speechSynthesis.speak(utter);
+  });
+  return wrap;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+async function askClaude(messages, key){
+  const apiMessages = messages.map(m => {
+    if(m.image){
+      return { role: m.role, content: [
+        { type:'text', text: m.content || '' },
+        { type:'image', source:{ type:'base64', media_type: m.image.mediaType, data: m.image.base64 } }
+      ]};
+    }
+    return { role: m.role, content: m.content };
+  });
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages: apiMessages })
+  });
+  const data = await r.json();
+  if(!r.ok) throw new Error((data.error && data.error.message) || 'erro no Claude');
+  return (data.content || []).map(b=>b.text||'').join('\n');
+}
+
+async function askGemini(messages, key){
+  const contents = messages.map(m => {
+    const parts = [{ text: m.content || '' }];
+    if(m.image) parts.push({ inline_data: { mime_type: m.image.mediaType, data: m.image.base64 } });
+    return { role: m.role === 'assistant' ? 'model' : 'user', parts };
+  });
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ contents })
+  });
+  const data = await r.json();
+  if(!r.ok) throw new Error((data.error && data.error.message) || 'erro no Gemini');
+  return data.candidates?.[0]?.content?.parts?.map(p=>p.text).join('\n') || '';
+}
+
+async function askCustomProvider(messages, provider){
+  // provedores no formato OpenAI geralmente não aceitam imagem neste formato simples — envia só o texto
+  const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  const r = await fetch(provider.url, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${provider.key}` },
+    body: JSON.stringify({ model: provider.model, messages: apiMessages })
+  });
+  const data = await r.json();
+  if(!r.ok) throw new Error((data.error && data.error.message) || `erro em ${provider.name}`);
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function runQuery(existingWrap){
+  const keys = getKeys();
+  const customProviders = getCustomProviders().filter(p => p.url && p.key && p.model);
+
+  const providers = [];
+  if(keys.claude) providers.push({ name:'Claude', fn: msgs => askClaude(msgs, keys.claude) });
+  if(keys.gemini) providers.push({ name:'Gemini', fn: msgs => askGemini(msgs, keys.gemini) });
+  customProviders.forEach(p => providers.push({ name:p.name || 'provedor extra', fn: msgs => askCustomProvider(msgs, p) }));
+
+  if(providers.length === 0){
+    addAiBubble('...', 'Nexus LP');
+    return;
+  }
+
+  const target = existingWrap ? existingWrap.querySelector('.msg.ai') : null;
+  const thinkingHtml = '<span class="tag">Nexus LP</span><span class="typing-dots"><span></span><span></span><span></span></span>';
+  if(target){ target.innerHTML = thinkingHtml; }
+  else { addAiBubble('', 'Nexus LP'); chatArea.lastElementChild.querySelector('.msg.ai').innerHTML = thinkingHtml; }
+
+  sendBtn.disabled = true;
+
+  // ---- 1. dispara para todos os provedores ativos em paralelo ----
+  const settled = await Promise.allSettled(providers.map(p => p.fn(currentMessages)));
+  const succeeded = settled
+    .map((r, i) => ({ name: providers[i].name, status: r.status, value: r.status === 'fulfilled' ? r.value : null }))
+    .filter(r => r.status === 'fulfilled' && r.value);
+
+  if(succeeded.length === 0){
+    sendBtn.disabled = false;
+    const errMsg = 'Todos os provedores configurados falharam agora. Verifica suas chaves em Configurações.';
+    if(target){ target.innerHTML = `<span class="tag">Nexus LP</span>${escapeHtml(errMsg)}`; }
+    else { chatArea.lastElementChild.remove(); addAiBubble(errMsg, 'Nexus LP'); }
+    return;
+  }
+
+  // ---- 2. se só um respondeu, usa direto; se vários, funde numa resposta única ----
+  let finalAnswer;
+  if(succeeded.length === 1){
+    finalAnswer = succeeded[0].value;
+  } else {
+    const synthesisPrompt =
+      'Combine as respostas abaixo, da mesma pergunta feita a fontes diferentes, numa única resposta final ' +
+      'clara e direta para o usuário. Não mencione que existem múltiplas fontes, não repita informação, ' +
+      'apenas entregue o melhor resultado combinado.\n\n' +
+      succeeded.map((s, i) => `Resposta ${i + 1}:\n${s.value}`).join('\n\n');
+
+    const synthesizer = providers.find(p => succeeded.some(s => s.name === p.name));
+    try{
+      finalAnswer = await synthesizer.fn([{ role:'user', content: synthesisPrompt }]);
+    }catch(e){
+      finalAnswer = succeeded[0].value; // se a síntese falhar, usa a primeira resposta que veio
+    }
+  }
+
+  currentMessages.push({ role:'assistant', content: finalAnswer });
+  if(target){ target.innerHTML = `<span class="tag">Nexus LP</span>${renderMessageContent(finalAnswer)}`; }
+  else {
+    chatArea.lastElementChild.remove();
+    addAiBubble(finalAnswer, 'Nexus LP');
+  }
+  persistCurrentConversation();
+  sendBtn.disabled = false;
+}
+
+// ---- anexar arquivo (imagem ou texto) ----
+let pendingAttachment = null; // { kind:'image', mediaType, base64, name } | { kind:'text', name, content }
+
+document.getElementById('attachBtn').addEventListener('click', ()=>{
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(file.size > 8 * 1024 * 1024){ alert('Arquivo muito grande (máx 8MB).'); return; }
+
+  if(file.type.startsWith('image/')){
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const base64 = reader.result.split(',')[1];
+      pendingAttachment = { kind:'image', mediaType: file.type, base64, name: file.name };
+      renderAttachPreview();
+    };
+    reader.readAsDataURL(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      pendingAttachment = { kind:'text', name: file.name, content: reader.result };
+      renderAttachPreview();
+    };
+    reader.readAsText(file);
+  }
+  e.target.value = '';
+});
+function renderAttachPreview(){
+  const wrap = document.getElementById('attachPreviewWrap');
+  if(!pendingAttachment){ wrap.innerHTML = ''; return; }
+  const icon = pendingAttachment.kind === 'image'
+    ? `<img src="data:${pendingAttachment.mediaType};base64,${pendingAttachment.base64}">`
+    : '📄';
+  wrap.innerHTML = `<div class="attach-preview">${icon}<span>${escapeHtml(pendingAttachment.name)}</span><span class="rm" id="rmAttach">remover</span></div>`;
+  document.getElementById('rmAttach').addEventListener('click', ()=>{ pendingAttachment = null; renderAttachPreview(); });
+}
+
+async function send(){
+  const text = input.value.trim();
+  if(!text && !pendingAttachment) return;
+  input.value = '';
+  input.style.height = 'auto';
+
+  let finalText = text;
+  let imagePayload = null;
+  if(pendingAttachment){
+    if(pendingAttachment.kind === 'text'){
+      finalText = `${text ? text + '\n\n' : ''}Arquivo anexado (${pendingAttachment.name}):\n${pendingAttachment.content}`;
+    } else {
+      imagePayload = { mediaType: pendingAttachment.mediaType, base64: pendingAttachment.base64 };
+      finalText = text || '(imagem anexada)';
+    }
+  }
+  const msg = { role:'user', content: finalText };
+  if(imagePayload) msg.image = imagePayload;
+
+  lastUserMessage = finalText;
+  currentMessages.push(msg);
+  addUserBubble(finalText + (imagePayload ? ' 📎' : ''));
+  pendingAttachment = null;
+  renderAttachPreview();
+  persistCurrentConversation();
+  await runQuery();
+}
+
+const sendBtn = document.getElementById('sendBtn');
+sendBtn.addEventListener('click', send);
+input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height = Math.min(input.scrollHeight,120)+'px'; });
+
+// ---- microfone: fala vira texto ----
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micBtn = document.getElementById('micBtn');
+if(SpeechRec){
+  const recognition = new SpeechRec();
+  recognition.lang = 'pt-BR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  let listening = false;
+  micBtn.addEventListener('click', ()=>{
+    if(listening) return;
+    listening = true;
+    micBtn.style.color = 'var(--accent)';
+    recognition.start();
+  });
+  recognition.onresult = (e)=>{
+    const transcript = e.results[0][0].transcript;
+    input.value = (input.value ? input.value + ' ' : '') + transcript;
+    input.dispatchEvent(new Event('input'));
+  };
+  recognition.onend = ()=>{ listening = false; micBtn.style.color = 'var(--sub)'; };
+  recognition.onerror = (e)=>{
+    listening = false;
+    micBtn.style.color = 'var(--sub)';
+    if(e.error === 'not-allowed' || e.error === 'permission-denied'){
+      alert('Permissão de microfone negada. Autoriza o microfone nas configurações do navegador pra este site.');
+    } else if(e.error === 'no-speech'){
+      // não fala nada, sem problema, só ignora
+    } else if(e.error === 'network' || e.error === 'service-not-allowed'){
+      alert('O reconhecimento de voz precisa de uma conexão https — abre o Nexus LP pelo link hospedado (Netlify/GitHub Pages), não pelo arquivo local.');
+    }
+  };
+} else {
+  micBtn.addEventListener('click', ()=>{ alert('Reconhecimento de voz não disponível neste navegador/contexto.'); });
+}
+</script>
+</body>
+</html>
