@@ -83,6 +83,8 @@
   #settingsScreen{
     position:fixed; inset:0; background:var(--bg); z-index:30; display:none;
     flex-direction:column; padding:20px; padding-top:calc(20px + env(safe-area-inset-top,0px));
+    overflow-y:scroll; -webkit-overflow-scrolling:touch; touch-action:pan-y;
+    padding-bottom:calc(60px + env(safe-area-inset-bottom,0px)); height:100vh;
   }
   #settingsScreen.open{display:flex;}
   #settingsScreen h2{font-size:1.1rem; margin:10px 0 4px;}
@@ -103,7 +105,8 @@
 
   .fullscreen{
     position:fixed; inset:0; background:var(--bg); z-index:25; display:none;
-    flex-direction:column; padding:20px; padding-top:calc(20px + env(safe-area-inset-top,0px)); overflow-y:auto;
+    flex-direction:column; padding:20px; padding-top:calc(20px + env(safe-area-inset-top,0px));
+    overflow-y:scroll; -webkit-overflow-scrolling:touch; touch-action:pan-y; height:100vh;
   }
   .fullscreen.open{display:flex;}
 
@@ -751,7 +754,7 @@ async function askGemini(messages, key){
     if(m.image) parts.push({ inline_data: { mime_type: m.image.mediaType, data: m.image.base64 } });
     return { role: m.role === 'assistant' ? 'model' : 'user', parts };
   });
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ contents })
