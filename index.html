@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nexus LP</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#171512">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{
     --bg:#171512; --panel:#1e1c19; --panel-2:#252220; --border:#33302b;
@@ -628,6 +634,13 @@ function addUserBubble(text){
   chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+function formatPlain(s){
+  // texto normal: escapa HTML e aplica **negrito** e `código inline`
+  return escapeHtml(s)
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`\n]+)`/g, '<code style="background:#ffffff14;padding:1px 5px;border-radius:4px;">$1</code>');
+}
+
 function renderMessageContent(text){
   // separa texto normal de blocos ```lang ... ```
   const parts = text.split(/```(\w*)\n?([\s\S]*?)```/g);
@@ -635,7 +648,7 @@ function renderMessageContent(text){
   let html = '';
   for(let i = 0; i < parts.length; i += 3){
     const plain = parts[i];
-    if(plain) html += escapeHtml(plain);
+    if(plain) html += formatPlain(plain);
     const lang = parts[i+1];
     const code = parts[i+2];
     if(code !== undefined){
@@ -647,7 +660,7 @@ function renderMessageContent(text){
       </div>`;
     }
   }
-  return html || escapeHtml(text);
+  return html || formatPlain(text);
 }
 
 function openCodeSandbox(code, lang){
@@ -702,26 +715,104 @@ function addAiBubble(text, answeredBy){
     runQuery(wrap);
   });
   wrap.querySelector('[data-speak]').addEventListener('click', function(){
-    if(!('speechSynthesis' in window)){ alert('Seu navegador não suporta leitura em voz.'); return; }
     const btn = this;
-    if(window.speechSynthesis.speaking){
-      window.speechSynthesis.cancel();
-      btn.textContent = '🔊';
+    const spoken = cleanForSpeech(text);
+    // 1) voz nativa do navegador, quando existe (Chrome)
+    if('speechSynthesis' in window){
+      if(window.speechSynthesis.speaking){
+        window.speechSynthesis.cancel();
+        btn.textContent = '🔊';
+        return;
+      }
+      const utter = new SpeechSynthesisUtterance(spoken);
+      utter.lang = 'pt-BR';
+      utter.onstart = ()=>{ btn.textContent = '⏸'; };
+      utter.onend = ()=>{ btn.textContent = '🔊'; };
+      utter.onerror = ()=>{ btn.textContent = '🔊'; };
+      window.speechSynthesis.speak(utter);
       return;
     }
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'pt-BR';
-    utter.onstart = ()=>{ btn.textContent = '⏸'; };
-    utter.onend = ()=>{ btn.textContent = '🔊'; };
-    utter.onerror = ()=>{ btn.textContent = '🔊'; };
-    window.speechSynthesis.speak(utter);
+    // 2) reserva para WebView/APK: gera o áudio pelo Gemini e toca como som normal
+    speakWithGemini(spoken, btn);
   });
   return wrap;
+}
+
+// ---- voz de reserva (Gemini TTS) para ambientes sem speechSynthesis, como APK/WebView ----
+let currentTtsAudio = null;
+
+function cleanForSpeech(t){
+  return t
+    .replace(/```[\s\S]*?```/g, ' (trecho de código) ')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/[`*_#>]/g, '')
+    .trim()
+    .slice(0, 3500);
+}
+
+function pcmBase64ToWavBlob(b64){
+  const bin = atob(b64);
+  const len = bin.length;
+  const pcm = new Uint8Array(len);
+  for(let i = 0; i < len; i++) pcm[i] = bin.charCodeAt(i);
+  const header = new ArrayBuffer(44);
+  const v = new DataView(header);
+  const w = (o, str) => { for(let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + len, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 24000, true); v.setUint32(28, 48000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, len, true);
+  return new Blob([header, pcm], { type:'audio/wav' });
+}
+
+async function speakWithGemini(text, btn){
+  const key = getKeys().gemini;
+  if(!key){
+    alert('Pra ouvir a resposta neste app, cadastre a chave do Gemini em Configurações.');
+    return;
+  }
+  if(currentTtsAudio){
+    currentTtsAudio.pause();
+    currentTtsAudio = null;
+    btn.textContent = '🔊';
+    return;
+  }
+  btn.textContent = '⏳';
+  try{
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${key}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{ parts:[{ text }] }],
+        generationConfig:{
+          responseModalities:['AUDIO'],
+          speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName:'Kore' } } }
+        }
+      })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error((data.error && data.error.message) || 'erro na voz');
+    const b64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if(!b64) throw new Error('sem áudio');
+    const url = URL.createObjectURL(pcmBase64ToWavBlob(b64));
+    const audio = new Audio(url);
+    currentTtsAudio = audio;
+    audio.onended = ()=>{ btn.textContent = '🔊'; currentTtsAudio = null; URL.revokeObjectURL(url); };
+    audio.onerror = ()=>{ btn.textContent = '🔊'; currentTtsAudio = null; };
+    await audio.play();
+    btn.textContent = '⏸';
+  }catch(e){
+    btn.textContent = '🔊';
+    currentTtsAudio = null;
+    alert('Não consegui gerar a voz agora: ' + e.message);
+  }
 }
 
 function escapeHtml(s){
   const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
 }
+
+const NEXUS_SYSTEM_PROMPT = 'Você é o Nexus LP, um assistente de IA. Quando perguntado quem você é, o que é, ou qual IA/modelo você é, responda sempre que você é o Nexus LP — nunca mencione o nome de nenhum modelo, empresa ou provedor de tecnologia por trás (não diga Claude, Anthropic, Gemini, Google, GPT, OpenAI ou qualquer nome parecido). Fora essa regra de identidade, responda normalmente e com toda sua capacidade.';
 
 async function askClaude(messages, key){
   const apiMessages = messages.map(m => {
@@ -741,7 +832,7 @@ async function askClaude(messages, key){
       'anthropic-version':'2023-06-01',
       'anthropic-dangerous-direct-browser-access':'true'
     },
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages: apiMessages })
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, system: NEXUS_SYSTEM_PROMPT, messages: apiMessages })
   });
   const data = await r.json();
   if(!r.ok) throw new Error((data.error && data.error.message) || 'erro no Claude');
@@ -757,7 +848,7 @@ async function askGemini(messages, key){
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ contents })
+    body: JSON.stringify({ contents, systemInstruction: { parts:[{ text: NEXUS_SYSTEM_PROMPT }] } })
   });
   const data = await r.json();
   if(!r.ok) throw new Error((data.error && data.error.message) || 'erro no Gemini');
@@ -766,7 +857,7 @@ async function askGemini(messages, key){
 
 async function askCustomProvider(messages, provider){
   // provedores no formato OpenAI geralmente não aceitam imagem neste formato simples — envia só o texto
-  const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  const apiMessages = [{ role:'system', content: NEXUS_SYSTEM_PROMPT }, ...messages.map(m => ({ role: m.role, content: m.content }))];
   const r = await fetch(provider.url, {
     method:'POST',
     headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${provider.key}` },
@@ -947,7 +1038,120 @@ if(SpeechRec){
     }
   };
 } else {
-  micBtn.addEventListener('click', ()=>{ alert('Reconhecimento de voz não disponível neste navegador/contexto.'); });
+  // Reserva para APK/WebView: grava a voz e o Gemini transcreve.
+  // Só funciona se o app empacotado liberar a permissão de microfone.
+  let mediaRec = null, micStream = null, chunks = [], autoStop = null;
+  const defaultPlaceholder = input.placeholder;
+
+  function resetMicUi(){
+    micBtn.style.color = 'var(--sub)';
+    input.placeholder = defaultPlaceholder;
+  }
+
+  async function blobToWav16k(blob){
+    const buf = await blob.arrayBuffer();
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    const decoded = await new Promise((res, rej) => ctx.decodeAudioData(buf, res, rej));
+    ctx.close && ctx.close();
+    const rate = 16000;
+    const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * rate)), rate);
+    const src = off.createBufferSource();
+    src.buffer = decoded;
+    src.connect(off.destination);
+    src.start();
+    const rendered = await off.startRendering();
+    const f32 = rendered.getChannelData(0);
+    const pcm = new Int16Array(f32.length);
+    for(let i = 0; i < f32.length; i++){
+      const v = Math.max(-1, Math.min(1, f32[i]));
+      pcm[i] = v < 0 ? v * 0x8000 : v * 0x7FFF;
+    }
+    const dataLen = pcm.length * 2;
+    const header = new ArrayBuffer(44);
+    const dv = new DataView(header);
+    const w = (o, str) => { for(let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
+    w(0,'RIFF'); dv.setUint32(4, 36 + dataLen, true); w(8,'WAVE'); w(12,'fmt ');
+    dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+    dv.setUint32(24,rate,true); dv.setUint32(28,rate*2,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true);
+    w(36,'data'); dv.setUint32(40, dataLen, true);
+    return new Blob([header, pcm.buffer], { type:'audio/wav' });
+  }
+
+  function blobToBase64(blob){
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  async function transcribeWithGemini(blob, key){
+    const wav = await blobToWav16k(blob);
+    const b64 = await blobToBase64(wav);
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{ parts:[
+        { text:'Transcreva fielmente este áudio em português. Responda somente com a transcrição, sem comentários. Se não houver fala, responda vazio.' },
+        { inline_data:{ mime_type:'audio/wav', data: b64 } }
+      ]}]})
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error((data.error && data.error.message) || 'erro na transcrição');
+    return (data.candidates?.[0]?.content?.parts?.map(p => p.text).join(' ') || '').trim();
+  }
+
+  function stopRecording(){
+    clearTimeout(autoStop);
+    if(mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
+  }
+
+  micBtn.addEventListener('click', async ()=>{
+    if(mediaRec && mediaRec.state === 'recording'){ stopRecording(); return; }
+
+    const key = getKeys().gemini;
+    if(!key){ alert('Pra usar o microfone neste app, cadastre a chave do Gemini em Configurações.'); return; }
+    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)){
+      alert('Este app não tem acesso ao microfone. Use o microfone do teclado do celular pra ditar.');
+      return;
+    }
+    try{
+      micStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    }catch(e){
+      alert('Este app não recebeu permissão de microfone. Use o microfone do teclado do celular pra ditar, ou gere o APK por uma ferramenta que libere o microfone.');
+      return;
+    }
+    chunks = [];
+    mediaRec = new MediaRecorder(micStream);
+    mediaRec.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
+    mediaRec.onstop = async () => {
+      micStream.getTracks().forEach(t => t.stop());
+      micBtn.style.color = 'var(--sub)';
+      input.placeholder = 'Transcrevendo...';
+      try{
+        const blob = new Blob(chunks, { type: mediaRec.mimeType || 'audio/webm' });
+        if(blob.size < 1500) throw new Error('áudio muito curto');
+        const textOut = await transcribeWithGemini(blob, key);
+        if(textOut){
+          input.value = (input.value ? input.value + ' ' : '') + textOut;
+          input.dispatchEvent(new Event('input'));
+        }
+      }catch(e){
+        alert('Não consegui transcrever: ' + e.message);
+      }
+      resetMicUi();
+    };
+    mediaRec.start();
+    micBtn.style.color = 'var(--accent)';
+    input.placeholder = 'Gravando... toque no microfone de novo pra parar';
+    autoStop = setTimeout(stopRecording, 60000);
+  });
+}
+// ---- PWA: registra o service worker (só em http/https) ----
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
 }
 </script>
 </body>
