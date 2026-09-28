@@ -99,6 +99,19 @@
   .field label{display:block; font-size:.8rem; color:var(--sub); margin-bottom:6px;}
   .field input{width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--ink); border-radius:10px; padding:10px 12px; font-size:.9rem;}
   .save-btn{background:var(--accent); color:#241a05; border:none; border-radius:10px; padding:12px; font-weight:600; width:100%; margin-top:6px;}
+  .key-card{border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--panel);}
+  .btn-row{display:flex; gap:8px; margin-top:8px;}
+  .mini-btn{flex:1; border:1px solid var(--border); background:none; color:var(--ink); border-radius:8px; padding:9px; font-size:.85rem; font-family:inherit;}
+  .mini-btn.danger{color:#e2604f;}
+  .mini-btn:active{background:var(--panel-2);}
+  .link-btn{background:none; border:none; color:#e2604f; font-size:.8rem; margin-top:8px; padding:4px 0; font-family:inherit;}
+  .test-result{font-size:.82rem; margin-top:8px; line-height:1.45; word-break:break-word;}
+  .test-result.ok{color:#4cc38a;}
+  .test-result.err{color:#ff6b5b;}
+  .test-result.wait{color:var(--sub);}
+  .msg.ai.error{background:#2a1a17; border:1px solid #e2604f66;}
+  .msg.ai.error .err-title{color:#ff8a7a; font-weight:600; display:block; margin-bottom:4px;}
+  .msg.ai.error .err-line{display:block; margin-top:3px; font-size:.86rem;}
   .back-row{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
 
   #lockScreen{
@@ -217,30 +230,34 @@
   </div>
   <h2>Chaves de API</h2>
   <p class="hint">Ficam guardadas só neste navegador (localStorage), nunca em nenhum servidor. Qualquer pessoa com acesso físico a este aparelho e a este navegador pode vê-las — não use num dispositivo compartilhado.</p>
-  <div class="field">
+
+  <div class="field key-card">
     <label>Claude (Anthropic API key)</label>
     <input type="password" id="keyClaude" placeholder="sk-ant-...">
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <button class="nav-item" data-test="claude" style="border:1px solid var(--border); border-radius:8px; justify-content:center;">Testar conexão</button>
-      <button class="nav-item" data-clear="claude" style="border:1px solid var(--border); border-radius:8px; justify-content:center; color:#e2604f;">Apagar</button>
+    <div class="btn-row">
+      <button class="mini-btn" data-test="claude">Testar conexão</button>
+      <button class="mini-btn danger" data-clear="claude">Apagar</button>
     </div>
-    <p class="hint" id="statusClaude" style="margin:6px 0 0;"></p>
+    <div class="test-result" id="resultClaude"></div>
   </div>
-  <div class="field">
+
+  <div class="field key-card">
     <label>Gemini (Google API key)</label>
     <input type="password" id="keyGemini" placeholder="AIza...">
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <button class="nav-item" data-test="gemini" style="border:1px solid var(--border); border-radius:8px; justify-content:center;">Testar conexão</button>
-      <button class="nav-item" data-clear="gemini" style="border:1px solid var(--border); border-radius:8px; justify-content:center; color:#e2604f;">Apagar</button>
+    <div class="btn-row">
+      <button class="mini-btn" data-test="gemini">Testar conexão</button>
+      <button class="mini-btn danger" data-clear="gemini">Apagar</button>
     </div>
-    <p class="hint" id="statusGemini" style="margin:6px 0 0;"></p>
+    <div class="test-result" id="resultGemini"></div>
   </div>
-  <button class="save-btn" id="saveKeys">Salvar</button>
 
-  <h2 style="margin-top:28px;">Outros provedores</h2>
+  <h2 style="margin-top:22px;">Outros provedores</h2>
   <p class="hint">Adicione qualquer serviço compatível com o formato "OpenAI Chat Completions" (Mistral, Groq, DeepSeek, xAI/Grok, Together, Perplexity, etc.) — é o padrão que a maioria segue.</p>
   <div id="customProviders"></div>
   <button class="nav-item" id="addProvider" style="border:1px dashed var(--border); border-radius:10px; justify-content:center; margin-top:6px;">+ Adicionar provedor</button>
+
+  <button class="save-btn" id="saveKeys" style="margin-top:18px;">Salvar</button>
+  <div class="test-result" id="saveResult"></div>
 
   <p class="hint" style="margin-top:14px;">ChatGPT não está disponível nesta versão sem servidor — a OpenAI bloqueia chamadas diretas do navegador, com ou sem chave.</p>
 
@@ -259,6 +276,9 @@
     <input type="password" id="newPasswordField" placeholder="nova senha">
   </div>
   <button class="save-btn" id="changePassword">Salvar nova senha</button>
+
+  <h2 style="margin-top:28px;">Diagnóstico</h2>
+  <p class="hint" id="diagInfo" style="white-space:pre-line;"></p>
 </div>
 
 <!-- trava por senha (cada instalação define a própria) -->
@@ -291,31 +311,90 @@ function getCustomProviders(){
 function saveCustomProviders(list){
   localStorage.setItem('nexuslp_custom_providers', JSON.stringify(list));
 }
+function escAttr(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setResult(el, kind, text){
+  if(!el) return;
+  el.className = 'test-result ' + kind;
+  el.textContent = text;
+}
+
 function renderCustomProviders(){
   const list = getCustomProviders();
   const el = document.getElementById('customProviders');
   el.innerHTML = list.map((p, i) => `
-    <div class="field" style="border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px;">
-      <label>Nome</label>
-      <input type="text" data-p="name" data-i="${i}" value="${p.name || ''}" placeholder="ex: Groq">
-      <label style="margin-top:8px;">URL base (até /chat/completions)</label>
-      <input type="text" data-p="url" data-i="${i}" value="${p.url || ''}" placeholder="https://api.groq.com/openai/v1/chat/completions">
-      <label style="margin-top:8px;">Modelo</label>
-      <input type="text" data-p="model" data-i="${i}" value="${p.model || ''}" placeholder="ex: llama-3.3-70b-versatile">
+    <div class="field key-card" data-card="${i}" style="margin-bottom:12px;">
+      <label>Nome do provedor</label>
+      <input type="text" data-p="name" data-i="${i}" value="${escAttr(p.name)}" placeholder="ex: Groq">
+      <label style="margin-top:8px;">URL da API (até /chat/completions)</label>
+      <input type="text" data-p="url" data-i="${i}" value="${escAttr(p.url)}" placeholder="https://api.groq.com/openai/v1/chat/completions">
+      <label style="margin-top:8px;">Modelo (nome exato)</label>
+      <input type="text" data-p="model" data-i="${i}" value="${escAttr(p.model)}" placeholder="ex: llama-3.3-70b-versatile">
       <label style="margin-top:8px;">Chave de API</label>
-      <input type="password" data-p="key" data-i="${i}" value="${p.key || ''}" placeholder="chave secreta">
-      <button class="nav-item" data-remove-provider="${i}" style="color:#e2604f; margin-top:8px;">Remover</button>
+      <input type="password" data-p="key" data-i="${i}" value="${escAttr(p.key)}" placeholder="chave secreta">
+      <div class="btn-row">
+        <button class="mini-btn" data-test-custom="${i}">Testar conexão</button>
+        <button class="mini-btn danger" data-clear-custom="${i}">Apagar</button>
+      </div>
+      <div class="test-result" id="resultCustom${i}"></div>
+      <button class="link-btn" data-remove-provider="${i}">Remover este provedor</button>
     </div>`).join('') || '<p class="hint">Nenhum provedor extra adicionado ainda.</p>';
 
+  // guarda automaticamente cada campo ao editar
   el.querySelectorAll('input').forEach(inp=>{
     inp.addEventListener('change', ()=>{
       const list = getCustomProviders();
-      list[inp.dataset.i][inp.dataset.p] = inp.value;
+      if(!list[inp.dataset.i]) return;
+      list[inp.dataset.i][inp.dataset.p] = inp.value.trim();
       saveCustomProviders(list);
     });
   });
+
+  // testar conexão (usa o que está digitado agora, mesmo sem salvar)
+  el.querySelectorAll('[data-test-custom]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const i = btn.dataset.testCustom;
+      const card = el.querySelector(`[data-card="${i}"]`);
+      const get = k => card.querySelector(`[data-p="${k}"]`).value.trim();
+      const prov = { name: get('name') || 'provedor', url: get('url'), model: get('model'), key: get('key') };
+      const out = document.getElementById('resultCustom' + i);
+      if(!prov.url || !prov.model || !prov.key){
+        setResult(out, 'err', '❌ Preencha URL, modelo e chave antes de testar.');
+        return;
+      }
+      if(!/^https:\/\//i.test(prov.url)){
+        setResult(out, 'err', '❌ A URL precisa começar com https://');
+        return;
+      }
+      setResult(out, 'wait', 'Testando...');
+      btn.disabled = true;
+      try{
+        await askCustomProvider([{ role:'user', content:'Responda apenas com a palavra: ok' }], prov);
+        setResult(out, 'ok', '✅ Conectado com sucesso.');
+      }catch(e){
+        setResult(out, 'err', '❌ ' + e.message);
+      }
+      btn.disabled = false;
+    });
+  });
+
+  // apagar só a chave deste provedor
+  el.querySelectorAll('[data-clear-custom]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = btn.dataset.clearCustom;
+      const list = getCustomProviders();
+      if(list[i]){ list[i].key = ''; saveCustomProviders(list); }
+      const keyInput = el.querySelector(`[data-card="${i}"] [data-p="key"]`);
+      if(keyInput) keyInput.value = '';
+      setResult(document.getElementById('resultCustom' + i), 'wait', 'Chave apagada.');
+    });
+  });
+
   el.querySelectorAll('[data-remove-provider]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(!confirm('Remover este provedor por completo?')) return;
       const list = getCustomProviders();
       list.splice(Number(btn.dataset.removeProvider), 1);
       saveCustomProviders(list);
@@ -513,7 +592,19 @@ document.getElementById('openSettings').addEventListener('click', ()=>{
   document.getElementById('lockScreen').classList.add('open');
 });
 
+function fillDiag(){
+  const yes = v => v ? 'sim' : 'não';
+  const el = document.getElementById('diagInfo');
+  if(!el) return;
+  el.textContent =
+    'Versão do app: v4\n' +
+    'Reconhecimento de voz (microfone): ' + yes(window.SpeechRecognition || window.webkitSpeechRecognition) + '\n' +
+    'Leitura em voz (alto-falante): ' + yes('speechSynthesis' in window && window.SpeechSynthesisUtterance);
+}
+
 function openSettingsScreen(){
+  fillDiag();
+  ['resultClaude','resultGemini','saveResult'].forEach(id => setResult(document.getElementById(id), 'wait', ''));
   const keys = getKeys();
   document.getElementById('keyClaude').value = keys.claude;
   document.getElementById('keyGemini').value = keys.gemini;
@@ -550,29 +641,41 @@ document.getElementById('changePassword').addEventListener('click', ()=>{
   alert('senha atualizada.');
 });
 
-// ---- testar conexão / apagar chave ----
+// ---- testar conexão / apagar chave (Claude e Gemini) ----
 document.querySelectorAll('[data-test]').forEach(btn=>{
   btn.addEventListener('click', async ()=>{
-    const which = btn.dataset.test;
-    const statusEl = document.getElementById('status' + which[0].toUpperCase() + which.slice(1));
-    const key = document.getElementById('key' + which[0].toUpperCase() + which.slice(1)).value.trim();
-    if(!key){ statusEl.textContent = 'cole uma chave antes de testar.'; return; }
-    statusEl.textContent = 'testando...';
+    const which = btn.dataset.test;                       // 'claude' | 'gemini'
+    const cap = which[0].toUpperCase() + which.slice(1);
+    const out = document.getElementById('result' + cap);
+    const key = document.getElementById('key' + cap).value.trim();
+    if(!key){ setResult(out, 'err', '❌ Cole a chave antes de testar.'); return; }
+    setResult(out, 'wait', 'Testando...');
+    btn.disabled = true;
     try{
-      if(which === 'claude') await askClaude([{role:'user', content:'oi'}], key);
-      else await askGemini([{role:'user', content:'oi'}], key);
-      statusEl.textContent = '✅ conectado com sucesso.';
+      const probe = [{ role:'user', content:'Responda apenas com a palavra: ok' }];
+      if(which === 'claude') await askClaude(probe, key);
+      else await askGemini(probe, key);
+      setResult(out, 'ok', '✅ Conectado com sucesso.');
     }catch(e){
-      statusEl.textContent = '❌ falhou: ' + e.message;
+      setResult(out, 'err', '❌ ' + e.message);
     }
+    btn.disabled = false;
   });
 });
 document.querySelectorAll('[data-clear]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     const which = btn.dataset.clear;
-    document.getElementById('key' + which[0].toUpperCase() + which.slice(1)).value = '';
+    const cap = which[0].toUpperCase() + which.slice(1);
+    document.getElementById('key' + cap).value = '';
     localStorage.removeItem('nexuslp_' + which + '_key');
-    document.getElementById('status' + which[0].toUpperCase() + which.slice(1)).textContent = 'chave apagada.';
+    setResult(document.getElementById('result' + cap), 'wait', 'Chave apagada.');
+  });
+});
+// guarda Claude/Gemini automaticamente ao terminar de digitar (evita perder a chave se esquecer de tocar em Salvar)
+['Claude','Gemini'].forEach(cap=>{
+  document.getElementById('key' + cap).addEventListener('change', ()=>{
+    const v = document.getElementById('key' + cap).value.trim();
+    if(v) localStorage.setItem('nexuslp_' + cap.toLowerCase() + '_key', v);
   });
 });
 
@@ -612,7 +715,17 @@ document.getElementById('closeSettings').addEventListener('click', ()=>{
 document.getElementById('saveKeys').addEventListener('click', ()=>{
   localStorage.setItem('nexuslp_claude_key', document.getElementById('keyClaude').value.trim());
   localStorage.setItem('nexuslp_gemini_key', document.getElementById('keyGemini').value.trim());
-  document.getElementById('settingsScreen').classList.remove('open');
+  // lê de novo todos os campos dos provedores extras, direto da tela
+  const list = getCustomProviders();
+  document.querySelectorAll('#customProviders [data-p]').forEach(inp=>{
+    const item = list[inp.dataset.i];
+    if(item) item[inp.dataset.p] = inp.value.trim();
+  });
+  saveCustomProviders(list);
+  const total = (document.getElementById('keyClaude').value.trim() ? 1 : 0)
+              + (document.getElementById('keyGemini').value.trim() ? 1 : 0)
+              + list.filter(p => p.url && p.model && p.key).length;
+  setResult(document.getElementById('saveResult'), 'ok', `✅ Configurações salvas. ${total} IA(s) pronta(s) para uso.`);
   updateStatusHint();
 });
 
@@ -715,116 +828,182 @@ function addAiBubble(text, answeredBy){
     runQuery(wrap);
   });
   wrap.querySelector('[data-speak]').addEventListener('click', function(){
-    const btn = this;
-    const spoken = cleanForSpeech(text);
-    // 1) voz nativa do navegador, quando existe (Chrome)
-    if('speechSynthesis' in window){
-      if(window.speechSynthesis.speaking){
-        window.speechSynthesis.cancel();
-        btn.textContent = '🔊';
-        return;
-      }
-      const utter = new SpeechSynthesisUtterance(spoken);
-      utter.lang = 'pt-BR';
-      utter.onstart = ()=>{ btn.textContent = '⏸'; };
-      utter.onend = ()=>{ btn.textContent = '🔊'; };
-      utter.onerror = ()=>{ btn.textContent = '🔊'; };
-      window.speechSynthesis.speak(utter);
-      return;
-    }
-    // 2) reserva para WebView/APK: gera o áudio pelo Gemini e toca como som normal
-    speakWithGemini(spoken, btn);
+    speakNative(text, this);
   });
   return wrap;
 }
 
-// ---- voz de reserva (Gemini TTS) para ambientes sem speechSynthesis, como APK/WebView ----
-let currentTtsAudio = null;
-
+// ---- leitura em voz alta: SOMENTE a voz nativa do sistema/navegador (gratuita e sem limite) ----
 function cleanForSpeech(t){
   return t
     .replace(/```[\s\S]*?```/g, ' (trecho de código) ')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/[`*_#>]/g, '')
-    .trim()
-    .slice(0, 3500);
+    .trim();
 }
 
-function pcmBase64ToWavBlob(b64){
-  const bin = atob(b64);
-  const len = bin.length;
-  const pcm = new Uint8Array(len);
-  for(let i = 0; i < len; i++) pcm[i] = bin.charCodeAt(i);
-  const header = new ArrayBuffer(44);
-  const v = new DataView(header);
-  const w = (o, str) => { for(let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
-  w(0, 'RIFF'); v.setUint32(4, 36 + len, true); w(8, 'WAVE'); w(12, 'fmt ');
-  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-  v.setUint32(24, 24000, true); v.setUint32(28, 48000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
-  w(36, 'data'); v.setUint32(40, len, true);
-  return new Blob([header, pcm], { type:'audio/wav' });
+// divide em trechos curtos (o Chrome corta falas muito longas no meio)
+function splitForSpeech(t){
+  const sentences = t.match(/[^.!?\n]+[.!?]*\s*/g) || [t];
+  const out = [];
+  let cur = '';
+  for(const sen of sentences){
+    if(cur && (cur + sen).length > 220){ out.push(cur.trim()); cur = sen; }
+    else cur += sen;
+  }
+  if(cur.trim()) out.push(cur.trim());
+  return out;
 }
 
-async function speakWithGemini(text, btn){
-  const key = getKeys().gemini;
-  if(!key){
-    alert('Pra ouvir a resposta neste app, cadastre a chave do Gemini em Configurações.');
+function speakNative(text, btn){
+  const synth = window.speechSynthesis;
+  if(!synth || !window.SpeechSynthesisUtterance){
+    alert('Este aparelho/app não tem leitura em voz do sistema. Abra o Nexus LP no Chrome pra ouvir as respostas.');
     return;
   }
-  if(currentTtsAudio){
-    currentTtsAudio.pause();
-    currentTtsAudio = null;
+  // tocar de novo enquanto fala = parar
+  if(synth.speaking || synth.pending){
+    synth.cancel();
     btn.textContent = '🔊';
     return;
   }
-  btn.textContent = '⏳';
-  try{
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${key}`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contents:[{ parts:[{ text }] }],
-        generationConfig:{
-          responseModalities:['AUDIO'],
-          speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName:'Kore' } } }
-        }
-      })
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error((data.error && data.error.message) || 'erro na voz');
-    const b64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if(!b64) throw new Error('sem áudio');
-    const url = URL.createObjectURL(pcmBase64ToWavBlob(b64));
-    const audio = new Audio(url);
-    currentTtsAudio = audio;
-    audio.onended = ()=>{ btn.textContent = '🔊'; currentTtsAudio = null; URL.revokeObjectURL(url); };
-    audio.onerror = ()=>{ btn.textContent = '🔊'; currentTtsAudio = null; };
-    await audio.play();
-    btn.textContent = '⏸';
-  }catch(e){
-    btn.textContent = '🔊';
-    currentTtsAudio = null;
-    alert('Não consegui gerar a voz agora: ' + e.message);
-  }
+  const chunks = splitForSpeech(cleanForSpeech(text));
+  if(!chunks.length) return;
+  const voices = synth.getVoices ? synth.getVoices() : [];
+  const voice = voices.find(v => /^pt[-_]BR/i.test(v.lang)) || voices.find(v => /^pt/i.test(v.lang)) || null;
+  let remaining = chunks.length;
+  chunks.forEach(chunk => {
+    const u = new SpeechSynthesisUtterance(chunk);
+    u.lang = 'pt-BR';
+    if(voice) u.voice = voice;
+    u.onstart = () => { btn.textContent = '⏸'; };
+    u.onend = () => { remaining--; if(remaining <= 0) btn.textContent = '🔊'; };
+    u.onerror = () => { btn.textContent = '🔊'; };
+    synth.speak(u);
+  });
 }
 
 function escapeHtml(s){
   const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
 }
 
-const NEXUS_SYSTEM_PROMPT = 'Você é o Nexus LP, um assistente de IA. Quando perguntado quem você é, o que é, ou qual IA/modelo você é, responda sempre que você é o Nexus LP — nunca mencione o nome de nenhum modelo, empresa ou provedor de tecnologia por trás (não diga Claude, Anthropic, Gemini, Google, GPT, OpenAI ou qualquer nome parecido). Fora essa regra de identidade, responda normalmente e com toda sua capacidade.';
+const NEXUS_SYSTEM_PROMPT = [
+  'Você é o Nexus LP, um assistente de IA. Dentro do Nexus LP você faz parte de uma equipe: várias inteligências trabalham juntas, e você já não é um modelo isolado — você é o Nexus LP.',
+  'O Nexus LP foi idealizado e criado por Laiton Flugêncio Mondlane. Quando perguntarem quem criou você ou o Nexus LP, responda que foi o Laiton Flugêncio Mondlane. Fale dele com respeito e orgulho sinceros: ele tem apenas 15 anos e conseguiu idealizar e construir um aplicativo de IA completo, algo que muita gente mais velha não consegue.',
+  'Quando perguntarem quem você é ou o que você é, responda que é o Nexus LP e não cite nomes de modelos, empresas ou provedores de tecnologia por trás. Isso não significa negar que você é uma IA: se perguntarem com sinceridade se você é uma pessoa ou uma IA, diga que é uma IA.',
+  'Fora isso, responda normalmente, no idioma do usuário, com toda a sua capacidade.'
+].join(' ');
+
+// ================= camada de API: requisição, erros e extração de texto =================
+
+function friendlyHttpError(status, providerMsg){
+  const detail = providerMsg ? ' Detalhe: ' + providerMsg : '';
+  if(status === 400) return `Pedido recusado (400).${detail}`;
+  if(status === 401) return `Chave inválida ou não autorizada (401).${detail}`;
+  if(status === 403) return `Acesso negado (403): a chave não tem permissão, ou a conta/região está bloqueada.${detail}`;
+  if(status === 404) return `Modelo ou endereço não encontrado (404): confira o nome do modelo e a URL.${detail}`;
+  if(status === 408) return `Tempo esgotado no servidor (408).${detail}`;
+  if(status === 413) return `Conteúdo grande demais para enviar (413).${detail}`;
+  if(status === 429) return `Limite de uso ou cota esgotada (429): aguarde um pouco ou confira créditos/plano.${detail}`;
+  if(status >= 500) return `Servidor da IA indisponível (${status}): tente de novo em instantes.${detail}`;
+  return `Erro ${status}.${detail}`;
+}
+
+function extractProviderError(d){
+  if(!d) return '';
+  const e = d.error;
+  if(typeof e === 'string') return e;
+  if(e && typeof e.message === 'string') return e.message;
+  if(typeof d.message === 'string') return d.message;
+  return '';
+}
+
+// faz a chamada, com limite de tempo, e devolve o JSON já convertido; qualquer falha vira um Error com texto claro
+async function apiRequest(url, options, timeoutMs = 60000){
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  let res, raw;
+  try{
+    res = await fetch(url, { ...options, signal: ctrl.signal });
+    raw = await res.text();
+  }catch(e){
+    if(e && e.name === 'AbortError') throw new Error('Tempo esgotado: a IA demorou demais para responder.');
+    throw new Error('Sem conexão com a internet, ou o acesso foi bloqueado pelo navegador/app.');
+  }finally{
+    clearTimeout(timer);
+  }
+  let data = null;
+  try{ data = raw ? JSON.parse(raw) : null; }catch(e){ data = null; }
+  if(!res.ok){
+    let msg = extractProviderError(data);
+    if(!msg && raw && raw.length < 200 && !raw.trim().startsWith('<')) msg = raw.trim();
+    throw new Error(friendlyHttpError(res.status, (msg || '').slice(0, 300)));
+  }
+  if(data === null) throw new Error('Resposta inválida do servidor (não veio em formato JSON).');
+  return data;
+}
+
+function extractClaudeText(data){
+  const txt = (data.content || [])
+    .filter(b => b && b.type === 'text' && b.text)
+    .map(b => b.text).join('\n').trim();
+  if(txt) return txt;
+  if(data.stop_reason === 'refusal') throw new Error('A IA recusou responder a esse conteúdo.');
+  throw new Error('A IA respondeu vazio.');
+}
+
+function extractGeminiText(data){
+  if(data.promptFeedback && data.promptFeedback.blockReason){
+    throw new Error('Pedido bloqueado pelo filtro de segurança (' + data.promptFeedback.blockReason + ').');
+  }
+  const cand = data.candidates && data.candidates[0];
+  const parts = (cand && cand.content && cand.content.parts) || [];
+  const txt = parts.filter(p => p && p.text && !p.thought).map(p => p.text).join('\n').trim();
+  if(txt) return txt;
+  const fr = cand && cand.finishReason;
+  if(fr === 'SAFETY' || fr === 'PROHIBITED_CONTENT' || fr === 'BLOCKLIST' || fr === 'SPII'){
+    throw new Error('Resposta bloqueada pelo filtro de segurança (' + fr + ').');
+  }
+  if(fr === 'MAX_TOKENS') throw new Error('A IA atingiu o limite de tamanho sem produzir texto.');
+  throw new Error('A IA respondeu vazio' + (fr ? ' (motivo: ' + fr + ')' : '') + '.');
+}
+
+function extractOpenAiText(data){
+  const msg = data.choices && data.choices[0] && data.choices[0].message;
+  let c = msg && msg.content;
+  if(Array.isArray(c)) c = c.map(x => (typeof x === 'string' ? x : (x && x.text) || '')).join('\n');
+  c = (c || '').trim();
+  if(c) return c;
+  throw new Error('A IA respondeu vazio.');
+}
+
+// limpa o histórico antes de enviar: sem mensagens vazias, sem duas seguidas do mesmo autor, começando por "user"
+function normalizeMessages(messages){
+  const out = [];
+  for(const m of messages){
+    if(!m || (!m.content && !m.image)) continue;
+    const last = out[out.length - 1];
+    if(last && last.role === m.role && !last.image && !m.image){
+      last.content += '\n\n' + m.content;
+    }else{
+      out.push({ ...m });
+    }
+  }
+  while(out.length && out[0].role !== 'user') out.shift();
+  return out;
+}
 
 async function askClaude(messages, key){
-  const apiMessages = messages.map(m => {
+  const apiMessages = normalizeMessages(messages).map(m => {
     if(m.image){
       return { role: m.role, content: [
-        { type:'text', text: m.content || '' },
+        { type:'text', text: m.content || '(imagem)' },
         { type:'image', source:{ type:'base64', media_type: m.image.mediaType, data: m.image.base64 } }
       ]};
     }
     return { role: m.role, content: m.content };
   });
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const data = await apiRequest('https://api.anthropic.com/v1/messages', {
     method:'POST',
     headers:{
       'Content-Type':'application/json',
@@ -832,104 +1011,172 @@ async function askClaude(messages, key){
       'anthropic-version':'2023-06-01',
       'anthropic-dangerous-direct-browser-access':'true'
     },
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, system: NEXUS_SYSTEM_PROMPT, messages: apiMessages })
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:4096, system: NEXUS_SYSTEM_PROMPT, messages: apiMessages })
   });
-  const data = await r.json();
-  if(!r.ok) throw new Error((data.error && data.error.message) || 'erro no Claude');
-  return (data.content || []).map(b=>b.text||'').join('\n');
+  return extractClaudeText(data);
 }
 
 async function askGemini(messages, key){
-  const contents = messages.map(m => {
-    const parts = [{ text: m.content || '' }];
+  const contents = normalizeMessages(messages).map(m => {
+    const parts = [{ text: m.content || '(imagem)' }];
     if(m.image) parts.push({ inline_data: { mime_type: m.image.mediaType, data: m.image.base64 } });
     return { role: m.role === 'assistant' ? 'model' : 'user', parts };
   });
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
+  const data = await apiRequest(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(key)}`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ contents, systemInstruction: { parts:[{ text: NEXUS_SYSTEM_PROMPT }] } })
   });
-  const data = await r.json();
-  if(!r.ok) throw new Error((data.error && data.error.message) || 'erro no Gemini');
-  return data.candidates?.[0]?.content?.parts?.map(p=>p.text).join('\n') || '';
+  return extractGeminiText(data);
 }
 
 async function askCustomProvider(messages, provider){
-  // provedores no formato OpenAI geralmente não aceitam imagem neste formato simples — envia só o texto
-  const apiMessages = [{ role:'system', content: NEXUS_SYSTEM_PROMPT }, ...messages.map(m => ({ role: m.role, content: m.content }))];
-  const r = await fetch(provider.url, {
+  // formato "OpenAI Chat Completions": envia só texto
+  const apiMessages = [
+    { role:'system', content: NEXUS_SYSTEM_PROMPT },
+    ...normalizeMessages(messages).map(m => ({ role: m.role, content: m.content || '(imagem)' }))
+  ];
+  const data = await apiRequest(provider.url, {
     method:'POST',
     headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${provider.key}` },
     body: JSON.stringify({ model: provider.model, messages: apiMessages })
   });
-  const data = await r.json();
-  if(!r.ok) throw new Error((data.error && data.error.message) || `erro em ${provider.name}`);
-  return data.choices?.[0]?.message?.content || '';
+  return extractOpenAiText(data);
+}
+
+// ================= orquestração: todas as IAs em paralelo + síntese =================
+
+function getActiveProviders(){
+  const keys = getKeys();
+  const list = [];
+  if(keys.claude) list.push({ name:'Claude', fn: msgs => askClaude(msgs, keys.claude) });
+  if(keys.gemini) list.push({ name:'Gemini', fn: msgs => askGemini(msgs, keys.gemini) });
+  getCustomProviders().filter(p => p.url && p.key && p.model).forEach(p => {
+    list.push({ name: p.name || 'Provedor extra', fn: msgs => askCustomProvider(msgs, p) });
+  });
+  return list;
+}
+
+// aviso de erro na conversa (fica no lugar da resposta, com botão de tentar de novo)
+function buildErrorHtml(title, lines){
+  return '<span class="tag">Nexus LP</span>' +
+    `<span class="err-title">${escapeHtml(title)}</span>` +
+    (lines || []).map(l => `<span class="err-line">${escapeHtml(l)}</span>`).join('');
+}
+
+function addErrorBubble(html){
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap error-wrap';
+  wrap.innerHTML = `
+    <div class="msg ai error">${html}</div>
+    <div class="actions"><button data-retry title="tentar de novo">🔄 Tentar de novo</button></div>`;
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  wrap.querySelector('[data-retry]').addEventListener('click', () => runQuery(wrap));
+  return wrap;
 }
 
 async function runQuery(existingWrap){
-  const keys = getKeys();
-  const customProviders = getCustomProviders().filter(p => p.url && p.key && p.model);
-
-  const providers = [];
-  if(keys.claude) providers.push({ name:'Claude', fn: msgs => askClaude(msgs, keys.claude) });
-  if(keys.gemini) providers.push({ name:'Gemini', fn: msgs => askGemini(msgs, keys.gemini) });
-  customProviders.forEach(p => providers.push({ name:p.name || 'provedor extra', fn: msgs => askCustomProvider(msgs, p) }));
-
-  if(providers.length === 0){
-    addAiBubble('...', 'Nexus LP');
-    return;
+  // tentar de novo a partir de um aviso de erro: remove o aviso e começa do zero
+  if(existingWrap && existingWrap.classList.contains('error-wrap')){
+    existingWrap.remove();
+    existingWrap = null;
   }
 
-  const target = existingWrap ? existingWrap.querySelector('.msg.ai') : null;
+  const convoId = currentConversationId;
+  const providers = getActiveProviders();
+
+  // mostra o "pensando"
   const thinkingHtml = '<span class="tag">Nexus LP</span><span class="typing-dots"><span></span><span></span><span></span></span>';
-  if(target){ target.innerHTML = thinkingHtml; }
-  else { addAiBubble('', 'Nexus LP'); chatArea.lastElementChild.querySelector('.msg.ai').innerHTML = thinkingHtml; }
+  const target = existingWrap ? existingWrap.querySelector('.msg.ai') : null;
+  let thinkingWrap = null;
+  if(target){
+    target.classList.remove('error');
+    target.innerHTML = thinkingHtml;
+  }else{
+    thinkingWrap = addAiBubble('', 'Nexus LP');
+    thinkingWrap.querySelector('.msg.ai').innerHTML = thinkingHtml;
+  }
+
+  // troca o "pensando" por um aviso de erro claro
+  const showError = (title, lines) => {
+    const html = buildErrorHtml(title, lines);
+    if(target){
+      target.classList.add('error');
+      target.innerHTML = html;
+    }else{
+      if(thinkingWrap) thinkingWrap.remove();
+      if(convoId === currentConversationId) addErrorBubble(html);
+    }
+  };
 
   sendBtn.disabled = true;
-
-  // ---- 1. dispara para todos os provedores ativos em paralelo ----
-  const settled = await Promise.allSettled(providers.map(p => p.fn(currentMessages)));
-  const succeeded = settled
-    .map((r, i) => ({ name: providers[i].name, status: r.status, value: r.status === 'fulfilled' ? r.value : null }))
-    .filter(r => r.status === 'fulfilled' && r.value);
-
-  if(succeeded.length === 0){
-    sendBtn.disabled = false;
-    const errMsg = 'Todos os provedores configurados falharam agora. Verifica suas chaves em Configurações.';
-    if(target){ target.innerHTML = `<span class="tag">Nexus LP</span>${escapeHtml(errMsg)}`; }
-    else { chatArea.lastElementChild.remove(); addAiBubble(errMsg, 'Nexus LP'); }
-    return;
-  }
-
-  // ---- 2. se só um respondeu, usa direto; se vários, funde numa resposta única ----
-  let finalAnswer;
-  if(succeeded.length === 1){
-    finalAnswer = succeeded[0].value;
-  } else {
-    const synthesisPrompt =
-      'Combine as respostas abaixo, da mesma pergunta feita a fontes diferentes, numa única resposta final ' +
-      'clara e direta para o usuário. Não mencione que existem múltiplas fontes, não repita informação, ' +
-      'apenas entregue o melhor resultado combinado.\n\n' +
-      succeeded.map((s, i) => `Resposta ${i + 1}:\n${s.value}`).join('\n\n');
-
-    const synthesizer = providers.find(p => succeeded.some(s => s.name === p.name));
-    try{
-      finalAnswer = await synthesizer.fn([{ role:'user', content: synthesisPrompt }]);
-    }catch(e){
-      finalAnswer = succeeded[0].value; // se a síntese falhar, usa a primeira resposta que veio
+  try{
+    if(providers.length === 0){
+      showError('Nenhuma IA está configurada ainda.', ['Abra o menu → Configurações, cole uma chave de API, toque em Testar conexão e depois em Salvar.']);
+      return;
     }
-  }
 
-  currentMessages.push({ role:'assistant', content: finalAnswer });
-  if(target){ target.innerHTML = `<span class="tag">Nexus LP</span>${renderMessageContent(finalAnswer)}`; }
-  else {
-    chatArea.lastElementChild.remove();
-    addAiBubble(finalAnswer, 'Nexus LP');
+    // ---- 1. dispara para todas as IAs ativas em paralelo ----
+    const history = currentMessages.slice();
+    const settled = await Promise.allSettled(providers.map(p => p.fn(history)));
+    const succeeded = [], failures = [];
+    settled.forEach((r, i) => {
+      if(r.status === 'fulfilled' && r.value && r.value.trim()) succeeded.push({ name: providers[i].name, value: r.value.trim() });
+      else failures.push({ name: providers[i].name, message: r.status === 'rejected' ? (r.reason && r.reason.message) || 'erro desconhecido' : 'A IA respondeu vazio.' });
+    });
+
+    // ---- 2. se todas falharam, explica o motivo de cada uma ----
+    if(succeeded.length === 0){
+      showError('Não consegui responder agora.', failures.map(f => `${f.name}: ${f.message}`));
+      return;
+    }
+
+    // ---- 3. uma só respondeu: usa direto; várias: funde numa resposta única ----
+    let finalAnswer = succeeded[0].value;
+    if(succeeded.length > 1){
+      const lastUser = [...history].reverse().find(m => m.role === 'user');
+      const synthesisPrompt =
+        'Você recebeu várias respostas para a mesma pergunta do usuário. Combine-as numa única resposta final, ' +
+        'clara e direta, no idioma do usuário. Não mencione que existem várias fontes, não repita informação, ' +
+        'mantenha blocos de código completos e corrija eventuais contradições.\n\n' +
+        `Pergunta do usuário:\n${lastUser ? lastUser.content : ''}\n\n` +
+        succeeded.map((x, i) => `Resposta ${i + 1}:\n${x.value}`).join('\n\n');
+      const synthesizer = providers.find(p => succeeded.some(x => x.name === p.name));
+      try{
+        const merged = await synthesizer.fn([{ role:'user', content: synthesisPrompt }]);
+        if(merged && merged.trim()) finalAnswer = merged.trim();
+      }catch(e){ /* a síntese falhou: fica com a primeira resposta que chegou */ }
+    }
+
+    // ---- 4. mostra e guarda ----
+    if(convoId !== currentConversationId){
+      // o usuário trocou de conversa enquanto esperava: grava a resposta na conversa de origem
+      const list = loadConversations();
+      const rec = list.find(c => c.id === convoId);
+      if(rec){
+        rec.messages.push({ role:'assistant', content: finalAnswer });
+        rec.updatedAt = Date.now();
+        saveConversations(list);
+        renderRecents();
+      }
+      return;
+    }
+    currentMessages.push({ role:'assistant', content: finalAnswer });
+    if(target){
+      target.classList.remove('error');
+      target.innerHTML = `<span class="tag">Nexus LP</span>${renderMessageContent(finalAnswer)}`;
+    }else{
+      if(thinkingWrap) thinkingWrap.remove();
+      addAiBubble(finalAnswer, 'Nexus LP');
+    }
+    persistCurrentConversation();
+  }catch(e){
+    // qualquer erro inesperado também vira aviso na tela, nunca fica preso no "pensando"
+    showError('Algo deu errado.', [(e && e.message) || 'erro desconhecido']);
+  }finally{
+    sendBtn.disabled = false;
   }
-  persistCurrentConversation();
-  sendBtn.disabled = false;
 }
 
 // ---- anexar arquivo (imagem ou texto) ----
@@ -1004,151 +1251,77 @@ sendBtn.addEventListener('click', send);
 input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
 input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height = Math.min(input.scrollHeight,120)+'px'; });
 
-// ---- microfone: fala vira texto ----
+// ---- microfone: SOMENTE o reconhecimento de voz nativo (sem chamar nenhuma API de IA) ----
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 const micBtn = document.getElementById('micBtn');
-if(SpeechRec){
-  const recognition = new SpeechRec();
+const defaultPlaceholder = input.placeholder;
+let recognition = null, listening = false, nativeStarted = false, nativeGotResult = false, micHandled = false, micWatchdog = null;
+
+function resetMicUi(){
+  clearTimeout(micWatchdog);
+  listening = false;
+  micBtn.style.color = 'var(--sub)';
+  input.placeholder = defaultPlaceholder;
+}
+
+function micProblem(message){
+  if(micHandled) return;
+  micHandled = true;
+  resetMicUi();
+  alert(message);
+}
+const MIC_UNAVAILABLE = 'O microfone de voz não funciona neste app. Use o microfone do teclado do celular (ícone 🎙️ no teclado) pra ditar, ou abra o Nexus LP no Chrome.';
+
+micBtn.addEventListener('click', ()=>{
+  if(!SpeechRec){ micHandled = false; micProblem(MIC_UNAVAILABLE); return; }
+
+  if(listening){
+    // se já estava ouvindo, para; se travou sem nunca iniciar, avisa
+    if(nativeStarted){ try{ recognition.stop(); }catch(e){} }
+    else { try{ recognition.abort(); }catch(e){} micHandled = false; micProblem(MIC_UNAVAILABLE); }
+    return;
+  }
+
+  recognition = new SpeechRec();
   recognition.lang = 'pt-BR';
   recognition.continuous = false;
   recognition.interimResults = false;
+  listening = true; nativeStarted = false; nativeGotResult = false; micHandled = false;
+  micBtn.style.color = 'var(--accent)';
+  input.placeholder = 'Ouvindo...';
 
-  let listening = false;
-  micBtn.addEventListener('click', ()=>{
-    if(listening) return;
-    listening = true;
-    micBtn.style.color = 'var(--accent)';
-    recognition.start();
-  });
+  recognition.onstart = ()=>{ nativeStarted = true; clearTimeout(micWatchdog); };
   recognition.onresult = (e)=>{
+    nativeGotResult = true;
     const transcript = e.results[0][0].transcript;
     input.value = (input.value ? input.value + ' ' : '') + transcript;
     input.dispatchEvent(new Event('input'));
   };
-  recognition.onend = ()=>{ listening = false; micBtn.style.color = 'var(--sub)'; };
-  recognition.onerror = (e)=>{
-    listening = false;
-    micBtn.style.color = 'var(--sub)';
-    if(e.error === 'not-allowed' || e.error === 'permission-denied'){
-      alert('Permissão de microfone negada. Autoriza o microfone nas configurações do navegador pra este site.');
-    } else if(e.error === 'no-speech'){
-      // não fala nada, sem problema, só ignora
-    } else if(e.error === 'network' || e.error === 'service-not-allowed'){
-      alert('O reconhecimento de voz precisa de uma conexão https — abre o Nexus LP pelo link hospedado (Netlify/GitHub Pages), não pelo arquivo local.');
-    }
+  recognition.onend = ()=>{
+    const silentFail = !nativeStarted && !nativeGotResult && !micHandled;
+    resetMicUi();
+    if(silentFail) micProblem(MIC_UNAVAILABLE);
   };
-} else {
-  // Reserva para APK/WebView: grava a voz e o Gemini transcreve.
-  // Só funciona se o app empacotado liberar a permissão de microfone.
-  let mediaRec = null, micStream = null, chunks = [], autoStop = null;
-  const defaultPlaceholder = input.placeholder;
-
-  function resetMicUi(){
-    micBtn.style.color = 'var(--sub)';
-    input.placeholder = defaultPlaceholder;
-  }
-
-  async function blobToWav16k(blob){
-    const buf = await blob.arrayBuffer();
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new Ctx();
-    const decoded = await new Promise((res, rej) => ctx.decodeAudioData(buf, res, rej));
-    ctx.close && ctx.close();
-    const rate = 16000;
-    const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * rate)), rate);
-    const src = off.createBufferSource();
-    src.buffer = decoded;
-    src.connect(off.destination);
-    src.start();
-    const rendered = await off.startRendering();
-    const f32 = rendered.getChannelData(0);
-    const pcm = new Int16Array(f32.length);
-    for(let i = 0; i < f32.length; i++){
-      const v = Math.max(-1, Math.min(1, f32[i]));
-      pcm[i] = v < 0 ? v * 0x8000 : v * 0x7FFF;
-    }
-    const dataLen = pcm.length * 2;
-    const header = new ArrayBuffer(44);
-    const dv = new DataView(header);
-    const w = (o, str) => { for(let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
-    w(0,'RIFF'); dv.setUint32(4, 36 + dataLen, true); w(8,'WAVE'); w(12,'fmt ');
-    dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
-    dv.setUint32(24,rate,true); dv.setUint32(28,rate*2,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true);
-    w(36,'data'); dv.setUint32(40, dataLen, true);
-    return new Blob([header, pcm.buffer], { type:'audio/wav' });
-  }
-
-  function blobToBase64(blob){
-    return new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(String(r.result).split(',')[1]);
-      r.onerror = rej;
-      r.readAsDataURL(blob);
-    });
-  }
-
-  async function transcribeWithGemini(blob, key){
-    const wav = await blobToWav16k(blob);
-    const b64 = await blobToBase64(wav);
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${key}`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{ parts:[
-        { text:'Transcreva fielmente este áudio em português. Responda somente com a transcrição, sem comentários. Se não houver fala, responda vazio.' },
-        { inline_data:{ mime_type:'audio/wav', data: b64 } }
-      ]}]})
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error((data.error && data.error.message) || 'erro na transcrição');
-    return (data.candidates?.[0]?.content?.parts?.map(p => p.text).join(' ') || '').trim();
-  }
-
-  function stopRecording(){
-    clearTimeout(autoStop);
-    if(mediaRec && mediaRec.state !== 'inactive') mediaRec.stop();
-  }
-
-  micBtn.addEventListener('click', async ()=>{
-    if(mediaRec && mediaRec.state === 'recording'){ stopRecording(); return; }
-
-    const key = getKeys().gemini;
-    if(!key){ alert('Pra usar o microfone neste app, cadastre a chave do Gemini em Configurações.'); return; }
-    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)){
-      alert('Este app não tem acesso ao microfone. Use o microfone do teclado do celular pra ditar.');
+  recognition.onerror = (e)=>{
+    if(e.error === 'no-speech' || e.error === 'aborted'){ resetMicUi(); return; }
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      micProblem('O microfone está sem permissão. Libere o microfone pra este site/app nas configurações do Android, ou use o microfone do teclado.');
       return;
     }
-    try{
-      micStream = await navigator.mediaDevices.getUserMedia({ audio:true });
-    }catch(e){
-      alert('Este app não recebeu permissão de microfone. Use o microfone do teclado do celular pra ditar, ou gere o APK por uma ferramenta que libere o microfone.');
+    if(e.error === 'network'){
+      micProblem('O reconhecimento de voz precisa de internet. Verifique sua conexão.');
       return;
     }
-    chunks = [];
-    mediaRec = new MediaRecorder(micStream);
-    mediaRec.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
-    mediaRec.onstop = async () => {
-      micStream.getTracks().forEach(t => t.stop());
-      micBtn.style.color = 'var(--sub)';
-      input.placeholder = 'Transcrevendo...';
-      try{
-        const blob = new Blob(chunks, { type: mediaRec.mimeType || 'audio/webm' });
-        if(blob.size < 1500) throw new Error('áudio muito curto');
-        const textOut = await transcribeWithGemini(blob, key);
-        if(textOut){
-          input.value = (input.value ? input.value + ' ' : '') + textOut;
-          input.dispatchEvent(new Event('input'));
-        }
-      }catch(e){
-        alert('Não consegui transcrever: ' + e.message);
-      }
-      resetMicUi();
-    };
-    mediaRec.start();
-    micBtn.style.color = 'var(--accent)';
-    input.placeholder = 'Gravando... toque no microfone de novo pra parar';
-    autoStop = setTimeout(stopRecording, 60000);
-  });
-}
+    micProblem(MIC_UNAVAILABLE);
+  };
+
+  try{ recognition.start(); }catch(e){ micProblem(MIC_UNAVAILABLE); return; }
+  // WebView que finge ter reconhecimento de voz mas nunca inicia: avisa em vez de ficar travado
+  micWatchdog = setTimeout(()=>{
+    if(!nativeStarted){ try{ recognition.abort(); }catch(e){} micProblem(MIC_UNAVAILABLE); }
+  }, 7000);
+});
+
 // ---- PWA: registra o service worker (só em http/https) ----
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
