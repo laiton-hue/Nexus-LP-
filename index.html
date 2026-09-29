@@ -1,756 +1,335 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Nexus LP</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#12141a">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12141a"><title>Nexus LP</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#12141a; --panel:#181b23; --panel-2:#1f232d; --border:#2a2f3a;
-    --ink:#e9e8e4; --sub:#5c6270; --accent:#e0a458; --accent-alt:#5fa8a0;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;overflow-x:hidden;}
-  body{
-    background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;
-    height:100vh;height:100dvh;width:100%;max-width:100vw;overflow:hidden;
-    padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
-    display:flex;
-  }
-  button{font-family:inherit;touch-action:manipulation;cursor:pointer;}
-
-  /* sidebar */
-  #sidebar{
-    position:fixed;inset:0 auto 0 0;width:280px;background:var(--panel);
-    border-right:1px solid var(--border);padding:20px 16px;
-    transform:translateX(-100%);transition:transform .25s ease;z-index:20;
-    display:flex;flex-direction:column;
-  }
-  #sidebar.open{transform:translateX(0);}
-  #sidebar h1{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;margin:4px 0 24px;color:var(--ink);}
-  .nav-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;color:var(--ink);font-size:.95rem;background:none;border:none;width:100%;text-align:left;}
-  .nav-item:active{background:var(--panel-2);}
-  .sidebar-footer{margin-top:auto;display:flex;align-items:center;gap:10px;padding:8px 0;}
-  .avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#1a1305;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;}
-  .recent-item{width:100%;text-align:left;background:none;border:none;color:#9aa0ac;font-size:.88rem;padding:10px 12px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;justify-content:space-between;align-items:center;gap:6px;}
-  .recent-item:active{background:var(--panel-2);}
-  .recent-item.active{background:var(--panel-2);color:var(--ink);}
-  .recent-item .del{opacity:.5;flex-shrink:0;}
-
-  #overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .25s;z-index:15;}
-  #overlay.show{opacity:1;pointer-events:auto;}
-
-  /* shell & main */
-  .shell{display:flex;flex-direction:column;height:100%;width:100%;position:relative;}
-  .screen{display:none;flex-direction:column;flex:1;min-height:0;width:100%;}
-  .screen.active{display:flex;}
-
-  /* topbar */
-  .topbar{display:flex;align-items:center;gap:8px;padding:16px 16px 8px;flex-shrink:0;}
-  .ham{font-size:24px;background:none;border:none;color:var(--ink);line-height:1;padding:2px;}
-  .mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-alt));flex-shrink:0;}
-  .spacer{flex:1;}
-  .mode-label{font-size:13px;color:var(--sub);margin-left:2px;}
-  .pill-btn-flat{font-size:12px;padding:7px 12px;border-radius:20px;background:var(--panel-2);border:1px solid var(--border);color:var(--accent);font-family:inherit;}
-
-  /* home splash */
-  .center{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 24px;}
-  .big-mark{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,var(--accent),var(--accent-alt));}
-  h1.splash-title{font-size:28px;font-weight:600;text-align:center;}
-
-  /* chat msgs */
-  .msgs{flex:1;min-height:0;width:100%;max-width:100%;overflow-y:auto;padding:8px 16px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch;}
-  .bubble{max-width:88%;width:fit-content;font-size:15px;line-height:1.55;word-break:break-word;white-space:pre-wrap;}
-  .bubble.user{align-self:flex-end;background:var(--panel-2);border-radius:16px 16px 4px 16px;padding:11px 15px;}
-  .bubble.ai{align-self:flex-start;}
-  .bubble .tag{font-size:11px;color:var(--sub);margin-bottom:4px;display:block;}
-  .bubble.ai.error{background:#2a1a17;border:1px solid rgba(226,96,79,.4);padding:12px 16px;border-radius:12px;}
-  .bubble.ai.error .err-title{color:#ff8a7a;font-weight:600;display:block;margin-bottom:4px;}
-  .bubble.ai.error .err-line{display:block;margin-top:3px;font-size:13px;color:#cfc9c0;}
-  
-  .actions{display:flex;gap:12px;margin-top:6px;padding-left:4px;}
-  .actions button{background:none;border:none;color:var(--sub);padding:2px;font-size:13px;}
-  .actions button.active{color:var(--accent);}
-  .retry-btn{margin-top:6px;font-size:12.5px;padding:7px 14px;border-radius:20px;background:var(--panel-2);border:1px solid var(--border);color:var(--accent);}
-  .typing-dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--sub);margin-right:3px;animation:dotPulse 1.2s infinite;}
-  .typing-dots span:nth-child(2){animation-delay:.2s;}
-  .typing-dots span:nth-child(3){animation-delay:.4s;}
-  @keyframes dotPulse{0%,60%,100%{opacity:.3;transform:scale(.8);}30%{opacity:1;transform:scale(1);}}
-
-  /* code blocks */
-  .code-block-wrap{margin:10px 0;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:#00000030;}
-  .code-block-head{display:flex;justify-content:space-between;align-items:center;background:#00000040;padding:6px 10px;font-size:11px;color:var(--sub);font-family:monospace;}
-  .run-code-btn{background:var(--accent);color:#1a1305;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;}
-  .code-block{margin:0;padding:12px;color:#cfe8d0;font-family:monospace;font-size:12px;overflow-x:auto;white-space:pre;}
-
-  /* composer */
-  .composer-wrap{padding:0 16px 16px;flex-shrink:0;}
-  .attach-preview{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:var(--sub);}
-  .attach-preview .rm{margin-left:auto;color:#e2604f;}
-
-  .composer{border-radius:24px;background:var(--panel);border:1px solid var(--border);padding:12px;}
-  .composer textarea{width:100%;background:none;border:none;outline:none;color:var(--ink);font-family:inherit;font-size:15px;padding:4px 4px 10px;resize:none;max-height:120px;}
-  .composer textarea::placeholder{color:var(--sub);}
-  .row{display:flex;align-items:center;gap:8px;}
-  .pill-btn{height:36px;padding:0 12px;border-radius:20px;background:var(--panel-2);border:1px solid var(--border);color:var(--ink);font-size:12.5px;display:flex;align-items:center;gap:6px;}
-  .round{width:36px;height:36px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border);color:var(--ink);font-size:16px;display:grid;place-items:center;}
-  .round.send{background:var(--accent);color:#1a1305;border:none;}
-  .round.send:disabled{opacity:.4;}
-  .round.mic.listening{background:#c96a5a;border-color:#c96a5a;color:#fff;animation:pulse 1.1s infinite;}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(201,106,90,.5)}70%{box-shadow:0 0 0 8px rgba(201,106,90,0)}100%{box-shadow:0 0 0 0 rgba(201,106,90,0)}}
-  input[type=file]{display:none;}
-
-  /* fullscreen screens */
-  .fullscreen{
-    position:fixed;inset:0;background:var(--bg);z-index:30;display:none;
-    flex-direction:column;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px));
-    overflow-y:auto;-webkit-overflow-scrolling:touch;height:100vh;
-  }
-  .fullscreen.open{display:flex;}
-  .back-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-shrink:0;}
-  .field{margin-bottom:16px;}
-  .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px;}
-  .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;}
-  .save-btn{background:var(--accent);color:#1a1305;border:none;border-radius:10px;padding:12px;font-weight:600;width:100%;margin-top:6px;}
-  .key-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--panel);}
-  .btn-row{display:flex;gap:8px;margin-top:8px;}
-  .mini-btn{flex:1;border:1px solid var(--border);background:none;color:var(--ink);border-radius:8px;padding:9px;font-size:13px;font-family:inherit;}
-  .mini-btn.danger{color:#e2604f;}
-  .link-btn{background:none;border:none;color:#e2604f;font-size:12px;margin-top:8px;padding:4px 0;font-family:inherit;}
-  .test-result{font-size:12px;margin-top:8px;line-height:1.45;word-break:break-word;}
-  .test-result.ok{color:#4cc38a;}
-  .test-result.err{color:#ff6b5b;}
-  .test-result.wait{color:var(--sub);}
-
-  /* mode sheet */
-  .sheet{position:absolute;inset-inline:0;bottom:0;background:var(--panel);border-top:1px solid var(--border);border-radius:24px 24px 0 0;transform:translateY(100%);transition:transform .2s;padding-bottom:env(safe-area-inset-bottom,16px);z-index:55;}
-  .overlay.open .sheet{transform:translateY(0);}
-  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 12px;}
-  .sheet-head span{font-size:17px;font-weight:600;}
-  .sheet-head button{background:none;border:none;color:var(--sub);font-size:20px;}
-  .sheet-list{padding:0 8px 8px;}
-  .mode-opt{width:100%;display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:12px;background:none;border:none;text-align:left;}
-  .mode-opt:active{background:var(--panel-2);}
-  .mode-opt .icon{font-size:20px;}
-  .mode-opt .info{flex:1;min-width:0;}
-  .mode-opt .name{font-size:15px;color:var(--ink);}
-  .mode-opt .name.active{color:var(--accent);font-weight:500;}
-  .mode-opt .desc{font-size:12.5px;color:var(--sub);}
-  .mode-opt .check{color:var(--accent);font-size:17px;}
-
-  /* lock screen */
-  #lockScreen{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
-  #lockScreen.open{display:flex;}
-  #lockScreen input{background:var(--panel-2);border:1px solid var(--border);color:var(--ink);border-radius:10px;padding:12px 14px;font-size:1rem;text-align:center;width:220px;margin:16px 0;}
-  #lockScreen p{color:var(--sub);font-size:13px;text-align:center;}
-</style>
-</head>
-<body>
-
-<div id="overlay"></div>
-
-<!-- SIDEBAR -->
-<aside id="sidebar">
-  <h1>Nexus LP</h1>
-  <button class="nav-item" id="newConvoBtn">✚ Nova conversa</button>
-  <button class="nav-item" id="openAllConvos">💬 Todas as conversas</button>
-  <button class="nav-item" id="openSettings">⚙ Configurações</button>
-  <div style="color:var(--sub);font-size:12px;margin:20px 0 8px 8px;">recentes</div>
-  <div id="recentsList" style="overflow-y:auto;flex:1;"></div>
-  <button class="sidebar-footer" id="openProfile" style="background:none;border:none;width:100%;">
-    <div class="avatar" id="profileAvatarBtn">LP</div>
-    <span style="font-size:13px;color:var(--sub);" id="profileNameLabel">Laiton</span>
-  </button>
-</aside>
-
+:root{color-scheme:dark;--bg:#12141a;--p:#181b23;--p2:#1f232d;--b:#2a2f3a;--ink:#e9e8e4;--sub:#7d8494;--ac:#e0a458;--tl:#5fa8a0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;height:100dvh;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+button,input,textarea{font-family:inherit;touch-action:manipulation}
+.shell{display:flex;flex-direction:column;height:100%}
+.screen{display:none;flex-direction:column;flex:1;min-height:0}.screen.on{display:flex}
+.top{display:flex;align-items:center;gap:10px;padding:16px;flex-shrink:0}
+.ham,.back{font-size:22px;background:none;border:none;color:var(--ink)}
+.mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--ac),var(--tl));flex-shrink:0}
+.sp{flex:1}.lbl{font-size:13px;color:var(--sub)}
+.flat{font-size:12px;padding:7px 12px;border-radius:20px;background:var(--p2);border:1px solid var(--b);color:var(--ac)}
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.big{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,var(--ac),var(--tl))}
+h1{font-size:28px;font-weight:600;text-align:center}
+.msgs{flex:1;min-height:0;overflow-y:auto;padding:8px 16px;display:flex;flex-direction:column;gap:14px}
+.bub{max-width:90%;width:fit-content;font-size:15px;line-height:1.55;word-break:break-word;white-space:pre-wrap}
+.bub.user{align-self:flex-end;background:var(--p2);border-radius:16px 16px 4px 16px;padding:10px 14px}
+.bub.dim{color:var(--sub);animation:bl 1.2s infinite}@keyframes bl{50%{opacity:.4}}
+.tag{font-size:11px;color:var(--sub);margin-bottom:4px}
+.acts{display:flex;gap:8px;margin-top:6px}
+.acts button,.retry{font-size:12px;min-width:26px;height:26px;padding:0 8px;border-radius:8px;border:1px solid var(--b);background:none;color:var(--sub)}
+.retry{margin-top:8px;color:var(--ac);border-radius:20px}
+.err{background:#2a1a17;border:1px solid #e2604f66;border-radius:12px;padding:10px 12px;font-size:14px}
+.err b{color:#ff8a7a;display:block;margin-bottom:4px}.err span{display:block;margin-top:3px}
+.cw{padding:0 16px 16px;flex-shrink:0}
+.composer{border-radius:24px;background:var(--p);border:1px solid var(--b);padding:12px}
+.composer textarea{width:100%;background:none;border:none;outline:none;color:var(--ink);font-size:15px;padding:4px 4px 10px;resize:none;max-height:110px}
+.row{display:flex;align-items:center;gap:8px}
+.pill{height:36px;padding:0 12px;border-radius:20px;background:var(--p2);border:1px solid var(--b);color:var(--ink);font-size:12.5px;display:flex;align-items:center;gap:6px}
+.pill #ml{color:var(--ac)}
+.round{width:36px;height:36px;border-radius:50%;background:var(--p2);border:1px solid var(--b);color:var(--ink);font-size:16px;display:grid;place-items:center;cursor:pointer}
+.round.send{background:var(--ac);color:#1a1305;border:none}.round.send:disabled{opacity:.4}
+.round.lis{background:#c96a5a;border-color:#c96a5a;animation:bl 1s infinite}
+#chip{font-size:12px;color:var(--sub);background:var(--p);border:1px solid var(--b);border-radius:12px;padding:6px 10px;margin-bottom:8px;display:none}
+#chip u{color:#e2604f;margin-left:8px}
+.wrap{flex:1;min-height:0;background:#fff;position:relative}
+.wrap iframe{width:100%;height:100%;border:none;display:block}
+.pv{border-bottom:1px solid var(--b);background:var(--p);padding:0 16px;height:56px}
+.scroll{flex:1;overflow-y:auto;padding:0 16px 60px}
+.scroll h3{font-size:16px;margin:22px 0 4px}.hint{color:var(--sub);font-size:12.5px;margin-bottom:12px;line-height:1.45}
+.card{border:1px solid var(--b);background:var(--p);border-radius:14px;padding:12px;margin-bottom:12px}
+.card label{display:block;font-size:12px;color:var(--sub);margin:8px 0 4px}.card label:first-child{margin-top:0}
+.card input{width:100%;background:var(--p2);border:1px solid var(--b);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px}
+.r{display:flex;gap:8px;margin-top:10px}
+.mini{flex:1;border:1px solid var(--b);background:none;color:var(--ink);border-radius:10px;padding:9px;font-size:13px}
+.mini.wide{width:100%;border-style:dashed}
+.save{background:var(--ac);color:#1a1305;border:none;border-radius:12px;padding:12px;font-weight:600;width:100%;margin-top:14px}
+.res{font-size:12.5px;margin-top:8px;word-break:break-word}.res.ok{color:#4cc38a}.res.err{color:#ff6b5b;background:none;border:none;padding:0}.res.wait{color:var(--sub)}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--p);border:1px solid var(--b);font-size:12.5px;padding:8px 14px;border-radius:20px;display:none;z-index:70;max-width:90%;text-align:center}
+#toast.show{display:block}
+.ov{position:fixed;inset:0;z-index:50;pointer-events:none}.ov.open{pointer-events:auto}
+.bd{position:absolute;inset:0;background:#0009;opacity:0;transition:opacity .2s}.ov.open .bd{opacity:1}
+.drawer{position:absolute;inset:0 15vw 0 0;max-width:340px;background:var(--bg);transform:translateX(-100%);transition:transform .22s;display:flex;flex-direction:column}
+.ov.open .drawer{transform:none}
+.dh{display:flex;align-items:center;gap:10px;padding:24px 20px 16px;font-size:22px;font-weight:600}
+.nav{padding:0 12px}.nav button{display:block;width:100%;padding:12px;border-radius:8px;background:none;border:none;color:var(--ink);font-size:15px;text-align:left}
+.nav button:active{background:var(--p2)}
+.dv{height:1px;background:var(--b);margin:12px 16px}.sl{padding:0 20px 4px;font-size:13px;color:var(--sub)}
+#recent{flex:1;overflow:auto;padding:0 12px}
+#recent div{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:8px;font-size:14px;color:#9aa0ac}
+#recent div:active{background:var(--p2)}#recent i{font-style:normal;color:var(--sub)}
+.df{display:flex;align-items:center;gap:12px;padding:16px}
+.av{width:40px;height:40px;border-radius:50%;background:var(--ac);color:#1a1305;font-weight:600;font-size:13px;display:grid;place-items:center}
+.nc{flex:1;height:44px;border-radius:22px;background:var(--ink);color:var(--bg);font-weight:500;font-size:14px;border:none}
+.sheet{position:absolute;inset-inline:0;bottom:0;background:var(--p);border-top:1px solid var(--b);border-radius:24px 24px 0 0;transform:translateY(100%);transition:transform .2s;padding-bottom:16px}
+.ov.open .sheet{transform:none}
+.sh{display:flex;justify-content:space-between;padding:20px 20px 12px;font-size:17px;font-weight:600}.sh button{background:none;border:none;color:var(--sub);font-size:20px}
+.mo{width:calc(100% - 16px);margin:0 8px;display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:12px;background:none;border:none;text-align:left;color:var(--ink)}
+.mo:active{background:var(--p2)}.mo .ic{font-size:20px}.mo small{display:block;font-size:12.5px;color:var(--sub)}.mo.on b{color:var(--ac)}
+</style></head><body>
 <div class="shell">
-
-  <!-- HOME SCREEN -->
-  <div class="screen active" id="screen-home">
-    <div class="topbar">
-      <button class="ham" id="hamHomeBtn">☰</button>
-      <div class="spacer"></div>
-      <div class="mark"></div>
-    </div>
-    <div class="center">
-      <div class="big-mark"></div>
-      <h1 class="splash-title" id="greet">Nexus LP</h1>
-    </div>
-    <div class="composer-wrap">
-      <div id="attachPreviewWrap"></div>
-      <div class="composer">
-        <textarea id="inputHome" rows="1" placeholder="Converse com o Nexus LP..."></textarea>
-        <div class="row">
-          <label class="round">➕<input type="file" id="fileInputHome" accept="image/*,.txt,.md,.csv,.json,.js,.html,.css"></label>
-          <button class="pill-btn" id="modeBtnHome"><span id="modeIconHome">🛠️</span><span id="modeLabelHome" style="color:var(--accent)">Engenheiro</span></button>
-          <div class="spacer"></div>
-          <button class="round mic" id="micBtnHome">🎙️</button>
-          <button class="round send" id="sendBtnHome">➤</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CHAT SCREEN -->
-  <div class="screen" id="screen-chat">
-    <div class="topbar">
-      <button class="ham" id="hamChatBtn">☰</button>
-      <span class="mode-label" id="chatModeLabel">🛠️ Engenheiro</span>
-      <div class="spacer"></div>
-      <button class="pill-btn-flat" id="previewModeBtn">Preview</button>
-    </div>
-    <div class="msgs" id="chatArea"></div>
-    <div class="composer-wrap">
-      <div id="attachPreviewWrapChat"></div>
-      <div class="composer">
-        <textarea id="inputChat" rows="1" placeholder="Digite sua mensagem..."></textarea>
-        <div class="row">
-          <label class="round">➕<input type="file" id="fileInputChat" accept="image/*,.txt,.md,.csv,.json,.js,.html,.css"></label>
-          <button class="pill-btn" id="modeBtnChat"><span id="modeIconChat">🛠️</span><span id="modeLabelChat" style="color:var(--accent)">Engenheiro</span></button>
-          <div class="spacer"></div>
-          <button class="round mic" id="micBtnChat">🎙️</button>
-          <button class="round send" id="sendBtnChat">➤</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
+<div class="screen on" id="s-home">
+ <div class="top"><button class="ham" onclick="openDrawer()">☰</button><div class="sp"></div><div class="mark"></div></div>
+ <div class="center"><div class="big"></div><h1 id="greet"></h1></div>
 </div>
-
-<!-- MODE SHEET -->
-<div class="overlay" id="modeOverlay">
-  <div class="backdrop" id="closeSheetBackdrop" style="position:absolute;inset:0;"></div>
-  <div class="sheet" id="modeSheet">
-    <div class="sheet-head"><span>Selecionar motor</span><button id="closeSheetBtn">✕</button></div>
-    <div class="sheet-list" id="modeList"></div>
-  </div>
+<div class="screen" id="s-chat">
+ <div class="top"><button class="ham" onclick="openDrawer()">☰</button><span class="lbl" id="cl"></span><div class="sp"></div><button class="flat" onclick="go('preview')">Preview</button></div>
+ <div class="msgs" id="msgs"></div>
 </div>
-
-<!-- ALL CONVOS SCREEN -->
-<div id="allConvosScreen" class="fullscreen">
-  <div class="back-row">
-    <button class="ham" id="closeAllConvos" style="font-size:20px;">←</button>
-    <span style="font-size:15px;font-weight:500;">Todas as conversas</span>
-  </div>
-  <div class="field"><input type="text" id="searchConvos" placeholder="Buscar conversa..."></div>
-  <div id="allConvosList"></div>
+<div class="screen" id="s-preview">
+ <div class="top pv"><button class="back" onclick="home()">←</button><b style="font-weight:500">Preview</b><div class="sp"></div><button class="flat" onclick="window.open('https://www.pwabuilder.com','_blank')">📦 Instalar APK</button></div>
+ <div class="wrap"><iframe id="frame" sandbox="allow-scripts allow-forms allow-modals" title="preview"></iframe></div>
 </div>
-
-<!-- PROFILE SCREEN -->
-<div id="profileScreen" class="fullscreen">
-  <div class="back-row">
-    <button class="ham" id="closeProfile" style="font-size:20px;">←</button>
-    <span style="font-size:15px;font-weight:500;">Perfil</span>
-  </div>
-  <div style="text-align:center;margin:20px 0;">
-    <div class="avatar" id="profileAvatarBig" style="width:64px;height:64px;font-size:1.4rem;margin:0 auto;">LP</div>
-  </div>
-  <div class="field">
-    <label>Seu nome</label>
-    <input type="text" id="profileNameInput" placeholder="Como quer ser chamado">
-  </div>
-  <button class="save-btn" id="saveProfile">Salvar</button>
+<div class="screen" id="s-settings">
+ <div class="top"><button class="back" onclick="home()">←</button><b style="font-weight:500">Configurações</b></div>
+ <div class="scroll" id="setBody">
+  <h3 style="margin-top:0">Chaves de API</h3>
+  <p class="hint">Ficam guardadas só neste aparelho (localStorage). Não use num dispositivo compartilhado.</p>
+  <div class="card"><label>Claude (Anthropic)</label><input type="password" id="k_claude" placeholder="sk-ant-...">
+   <div class="r"><button class="mini" onclick="testP('claude')">Testar conexão</button><button class="mini" onclick="clr('claude')">Apagar</button></div><div class="res" id="r_claude"></div></div>
+  <div class="card"><label>Gemini (Google)</label><input type="password" id="k_gemini" placeholder="AIza...">
+   <div class="r"><button class="mini" onclick="testP('gemini')">Testar conexão</button><button class="mini" onclick="clr('gemini')">Apagar</button></div><div class="res" id="r_gemini"></div></div>
+  <h3>Outros provedores</h3>
+  <p class="hint">Qualquer serviço no formato OpenAI Chat Completions (Groq, Mistral, DeepSeek, xAI...).</p>
+  <div id="customList"></div><button class="mini wide" onclick="addProv()">+ Adicionar provedor</button>
+  <button class="save" onclick="collect(true)">Salvar</button><div class="res" id="r_save"></div>
+ </div>
 </div>
-
-<!-- SETTINGS SCREEN -->
-<div id="settingsScreen" class="fullscreen">
-  <div class="back-row">
-    <button class="ham" id="closeSettings" style="font-size:20px;">←</button>
-    <span style="font-size:15px;font-weight:500;">Configurações</span>
-  </div>
-  <h2 style="font-size:1.1rem;margin:10px 0 4px;">Chaves de API</h2>
-  <p style="color:var(--sub);font-size:12px;margin:0 0 16px;">Ficam guardadas só neste navegador (localStorage), nunca em nenhum servidor.</p>
-
-  <div class="field key-card">
-    <label>Claude (Anthropic API key)</label>
-    <input type="password" id="keyClaude" placeholder="sk-ant-...">
-    <div class="btn-row">
-      <button class="mini-btn" data-test="claude">Testar conexão</button>
-      <button class="mini-btn danger" data-clear="claude">Apagar</button>
-    </div>
-    <div class="test-result" id="resultClaude"></div>
-  </div>
-
-  <div class="field key-card" style="margin-top:14px;">
-    <label>Gemini (Google API key)</label>
-    <input type="password" id="keyGemini" placeholder="AIza...">
-    <div class="btn-row">
-      <button class="mini-btn" data-test="gemini">Testar conexão</button>
-      <button class="mini-btn danger" data-clear="gemini">Apagar</button>
-    </div>
-    <div class="test-result" id="resultGemini"></div>
-  </div>
-
-  <h2 style="font-size:1.1rem;margin:22px 0 4px;">Outros provedores</h2>
-  <p style="color:var(--sub);font-size:12px;margin:0 0 16px;">Adicione serviços compatíveis com formato OpenAI (ex: Groq).</p>
-  <div id="customProviders"></div>
-  <button class="nav-item" id="addProvider" style="border:1px dashed var(--border);border-radius:10px;justify-content:center;margin-top:6px;">+ Adicionar provedor</button>
-
-  <button class="save-btn" id="saveKeys" style="margin-top:18px;">Salvar</button>
-  <div class="test-result" id="saveResult" style="margin-top:8px;"></div>
-
-  <h2 style="font-size:1.1rem;margin:28px 0 8px;">Backup</h2>
-  <div style="display:flex;gap:8px;">
-    <button class="mini-btn" id="exportConfig">Exportar configuração</button>
-    <label class="mini-btn" style="text-align:center;cursor:pointer;padding-top:10px;">
-      Importar <input type="file" id="importConfig" accept="application/json" style="display:none;">
-    </label>
-  </div>
-
-  <h2 style="font-size:1.1rem;margin:28px 0 8px;">Segurança</h2>
-  <div class="field">
-    <input type="password" id="newPasswordField" placeholder="Nova senha de acesso">
-  </div>
-  <button class="save-btn" id="changePassword">Atualizar senha</button>
-
-  <h2 style="font-size:1.1rem;margin:28px 0 8px;">Diagnóstico</h2>
-  <p style="color:var(--sub);font-size:12px;white-space:pre-line;" id="diagInfo"></p>
+<div class="cw" id="cw">
+ <div id="chip"></div>
+ <div class="composer"><textarea id="inp" rows="1" placeholder="Conversa com o Nexus LP..."></textarea>
+  <div class="row"><label class="round">➕<input type="file" id="file" accept="image/*,.txt,.md,.csv,.json,.html,.js,.css" hidden></label>
+   <button class="pill" onclick="openModes()"><span id="mi"></span><span id="ml"></span></button><div class="sp"></div>
+   <button class="round" id="mic" onclick="mic()">🎙️</button><button class="round send" id="send" onclick="send()">➤</button></div></div>
 </div>
-
-<!-- LOCK SCREEN -->
-<div id="lockScreen">
-  <div class="mark" style="width:44px;height:44px;margin-bottom:12px;"></div>
-  <p id="lockTitle">Digite a senha para acessar as configurações</p>
-  <input type="password" id="lockInput" placeholder="senha">
-  <input type="password" id="lockInputConfirm" placeholder="confirme a senha" style="display:none;">
-  <button class="save-btn" id="lockSubmit" style="width:220px;">Entrar</button>
-  <p id="lockError" style="color:#e2604f;display:none;margin-top:8px;font-size:12px;">senha incorreta</p>
 </div>
+<div id="toast"></div>
+<div class="ov" id="dOv"><div class="bd" onclick="closeDrawer()"></div><div class="drawer">
+ <div class="dh"><div class="mark" style="width:30px;height:30px"></div>Nexus LP</div>
+ <div class="nav"><button onclick="home()">💬 Conversas</button><button onclick="go('preview')">🧩 Artefactos</button><button onclick="go('settings')">⚙️ Configurações</button></div>
+ <div class="dv"></div><div class="sl">Recentes</div><div id="recent"></div>
+ <div class="df"><div class="av">LP</div><button class="nc" onclick="newConvo()">+ Nova conversa</button></div></div></div>
+<div class="ov" id="mOv"><div class="bd" onclick="closeModes()"></div><div class="sheet"><div class="sh"><span>Selecionar motor</span><button onclick="closeModes()">✕</button></div><div id="mList"></div></div></div>
 
 <script>
-const MODES = [
-  { key:'3d', label:'3D Game', icon:'🎮', desc:'Jogos e cenas 3D com Three.js/WebGL' },
-  { key:'engineer', label:'Engenheiro', icon:'🛠️', desc:'Apps e sites completos, código limpo' },
-  { key:'professional', label:'Profissional', icon:'💼', desc:'Documentos, planos e comunicação' },
-  { key:'partner', label:'Parceiro', icon:'🤝', desc:'Conversa natural, bate-papo amigável' }
-];
+const $=i=>document.getElementById(i);
+const esc=s=>{const d=document.createElement('div');d.textContent=s;return d.innerHTML};
+const ea=s=>esc(s).replace(/"/g,'&quot;');
+const LS={g:(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},s:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
+const CLAUDE_MODEL='claude-sonnet-4-6', GEMINI_MODEL='gemini-3.8-flash'; // troque aqui se o teste de conexão der 404
+const KC='nexuslp_convos', KG='nexuslp_cfg';
 
-let state = {
-  brain: 'engineer',
-  screen: 'home'
-};
+const MODES=[
+ {k:'3d',l:'3D Game',i:'🎮',d:'Jogos e cenas 3D com Three.js/WebGL'},
+ {k:'engineer',l:'Engenheiro',i:'🛠️',d:'Apps e sites completos, código limpo'},
+ {k:'professional',l:'Profissional',i:'💼',d:'Documentos, planos e comunicação de trabalho'},
+ {k:'partner',l:'Parceiro',i:'🤝',d:'Conversa natural, desabafos, bate-papo'}];
+const CODE=['3d','engineer'];
+const OUT=' Saída obrigatória: um único bloco ```html``` completo e autocontido, pronto para um <iframe srcdoc>, sem cortar no meio. Depois do bloco, no máximo 2 frases. Se receber um erro de execução, devolva o arquivo inteiro corrigido.';
+const SYSTEM='Você é o Nexus LP, um assistente de IA. Dentro do Nexus LP várias inteligências trabalham juntas como uma equipe, e você é o Nexus LP. O Nexus LP foi idealizado e criado por Laiton Flugêncio Mondlane; quando perguntarem quem criou, diga isso com respeito e orgulho sinceros: ele tem apenas 15 anos e construiu um aplicativo de IA completo. Quando perguntarem quem você é, diga que é o Nexus LP e não cite modelos, empresas ou provedores por trás; se perguntarem com sinceridade se é pessoa ou IA, diga que é uma IA. Responda no idioma do usuário.';
+const RULES={
+ partner:'Modo Parceiro: fale de forma natural, calorosa e direta, como um amigo de confiança. Sem tom corporativo nem listas desnecessárias. Às vezes a pessoa só quer desabafar; não interrogue à toa. Texto corrido.',
+ professional:'Modo Profissional: ajude com documentos, planos, e-mails e comunicação de trabalho. Tom claro, objetivo e educado. Use títulos/tópicos só quando ajudarem. Se o pedido for um app/jogo funcional, diga em 1 frase que fica melhor no modo Engenheiro ou 3D Game.',
+ engineer:'Modo Engenheiro: projete e escreva apps/sites web completos, mobile-first. Se o pedido for curto, expanda a intenção internamente sem perguntar de volta, salvo ambiguidade real.'+OUT,
+ '3d':'Modo 3D Game: escreva jogos e cenas 3D completos com Three.js (UMD via cdnjs) e WebGL, com cena, câmera, luzes e loop requestAnimationFrame; separe input, física e câmera.'+OUT};
 
-function greetingText(){
-  const h = new Date().getHours();
-  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-}
-document.getElementById('greet').textContent = greetingText();
+let cfg=LS.g(KG,{claude:'',gemini:'',custom:[]});
+cfg.claude=cfg.claude||localStorage.getItem('nexuslp_claude_key')||'';
+cfg.gemini=cfg.gemini||localStorage.getItem('nexuslp_gemini_key')||'';
+const BLANK='<!DOCTYPE html><html><body style="font-family:sans-serif;padding:20px;color:#333">Peça um app no chat — o código aparece aqui.</body></html>';
+const st={screen:'home',mode:'engineer',code:BLANK};
+let convo={id:'c'+Date.now(),messages:[]},busy=false,fixes=0,att=null,tt;
+const lab=k=>(MODES.find(m=>m.k===k)||MODES[1]).l;
 
-/* Navegação e Sidebar */
-function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
-function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
-document.getElementById('overlay').addEventListener('click', closeSidebar);
+/* ---------- utilidades de UI ---------- */
+function toast(m,ms=2500){const t=$('toast');clearTimeout(tt);t.textContent=m;t.classList.toggle('show',!!m);if(m)tt=setTimeout(()=>t.classList.remove('show'),ms)}
+function go(n){st.screen=n;document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id==='s-'+n));$('cw').style.display=(n==='home'||n==='chat')?'':'none';if(n==='preview')runPreview();if(n==='settings')renderSettings();closeDrawer()}
+const home=()=>go(convo.messages.length?'chat':'home');
+const openDrawer=()=>$('dOv').classList.add('open'), closeDrawer=()=>$('dOv').classList.remove('open');
+const closeModes=()=>$('mOv').classList.remove('open');
+function openModes(){$('mList').innerHTML=MODES.map(m=>`<button class="mo ${st.mode===m.k?'on':''}" onclick="setMode('${m.k}')"><span class="ic">${m.i}</span><span style="flex:1"><b style="font-weight:500">${m.l}</b><small>${m.d}</small></span>${st.mode===m.k?'✓':''}</button>`).join('');$('mOv').classList.add('open')}
+function setMode(k){st.mode=k;const m=MODES.find(x=>x.k===k);$('mi').textContent=m.i;$('ml').textContent=m.l;$('cl').textContent=m.i+' '+m.l;closeModes()}
+setMode('engineer');
+const h=new Date().getHours();$('greet').textContent=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
 
-document.getElementById('hamHomeBtn').addEventListener('click', openSidebar);
-document.getElementById('hamChatBtn').addEventListener('click', openSidebar);
+/* ---------- camada de API ---------- */
+const HTTP=s=>({400:'Pedido recusado (400).',401:'Chave inválida (401).',403:'Acesso negado (403): sem permissão ou região bloqueada.',404:'Modelo ou URL não encontrado (404).',429:'Limite de uso ou cota esgotada (429).'}[s]||(s>=500?`Servidor da IA indisponível (${s}).`:`Erro ${s}.`));
+async function api(url,opt){
+ const c=new AbortController(),t=setTimeout(()=>c.abort(),90000);let r,raw;
+ try{r=await fetch(url,{...opt,signal:c.signal});raw=await r.text()}
+ catch(e){throw new Error(e.name==='AbortError'?'Tempo esgotado: a IA demorou demais.':'Sem conexão, ou acesso bloqueado pelo navegador/app.')}
+ finally{clearTimeout(t)}
+ let d=null;try{d=JSON.parse(raw)}catch(e){}
+ if(!r.ok){const m=d&&((d.error&&d.error.message)||d.error||d.message);throw new Error(HTTP(r.status)+(typeof m==='string'?' '+m.slice(0,200):''))}
+ if(!d)throw new Error('Resposta inválida do servidor.');return d}
+function norm(ms){const o=[];for(const m of ms){if(!m||(!m.content&&!m.image))continue;const l=o[o.length-1];if(l&&l.role===m.role&&!l.image&&!m.image)l.content+='\n\n'+m.content;else o.push({...m})}while(o.length&&o[0].role!=='user')o.shift();return o}
+async function askClaude(ms,sys,k){
+ const messages=norm(ms).map(m=>m.image?{role:m.role,content:[{type:'text',text:m.content||'(imagem)'},{type:'image',source:{type:'base64',media_type:m.image.t,data:m.image.b}}]}:{role:m.role,content:m.content});
+ const d=await api('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:CLAUDE_MODEL,max_tokens:8000,system:sys||undefined,messages})});
+ const t=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+ if(!t)throw new Error(d.stop_reason==='refusal'?'A IA recusou esse conteúdo.':'A IA respondeu vazio.');return t}
+async function askGemini(ms,sys,k){
+ const contents=norm(ms).map(m=>{const p=[{text:m.content||'(imagem)'}];if(m.image)p.push({inline_data:{mime_type:m.image.t,data:m.image.b}});return{role:m.role==='assistant'?'model':'user',parts:p}});
+ const body={contents};if(sys)body.systemInstruction={parts:[{text:sys}]};
+ const d=await api(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(k)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ if(d.promptFeedback&&d.promptFeedback.blockReason)throw new Error('Bloqueado pelo filtro de segurança ('+d.promptFeedback.blockReason+').');
+ const c=d.candidates&&d.candidates[0],t=((c&&c.content&&c.content.parts)||[]).filter(p=>p.text&&!p.thought).map(p=>p.text).join('\n').trim();
+ if(!t)throw new Error('A IA respondeu vazio'+(c&&c.finishReason?' ('+c.finishReason+')':'')+'.');return t}
+async function askCustom(ms,sys,p){
+ const messages=[...(sys?[{role:'system',content:sys}]:[]),...norm(ms).map(m=>({role:m.role,content:m.content||'(imagem)'}))];
+ const d=await api(p.url,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+p.key},body:JSON.stringify({model:p.model,messages})});
+ let c=d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content;
+ if(Array.isArray(c))c=c.map(x=>x.text||x).join('\n');c=(c||'').trim();
+ if(!c)throw new Error('A IA respondeu vazio.');return c}
+const mk={claude:k=>({name:'Claude',ask:(m,s)=>askClaude(m,s,k)}),gemini:k=>({name:'Gemini',ask:(m,s)=>askGemini(m,s,k)}),custom:p=>({name:p.name||'Extra',ask:(m,s)=>askCustom(m,s,p)})};
+const providers=()=>[cfg.claude&&mk.claude(cfg.claude),cfg.gemini&&mk.gemini(cfg.gemini),...cfg.custom.filter(p=>p.url&&p.key&&p.model).map(p=>mk.custom(p))].filter(Boolean);
 
-function goScreen(name){
-  state.screen = name;
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-  closeSidebar();
-}
+/* todas as IAs em paralelo + síntese numa resposta única */
+async function askAll(hist,mode,provs){
+ const sys=SYSTEM+' '+RULES[mode];
+ const res=await Promise.allSettled(provs.map(p=>p.ask(hist,sys)));
+ const ok=[],err=[];
+ res.forEach((r,i)=>{if(r.status==='fulfilled'&&r.value)ok.push({p:provs[i],v:r.value});else err.push(provs[i].name+': '+((r.reason&&r.reason.message)||'resposta vazia'))});
+ if(!ok.length)return{err};
+ let text=ok[0].v;
+ if(ok.length>1){
+  const lu=[...hist].reverse().find(m=>m.role==='user');
+  const sp='Você recebeu várias respostas para a mesma pergunta. Combine-as numa única resposta final, clara e direta, no idioma do usuário. Não mencione que existem várias fontes, não repita informação, mantenha blocos de código completos e corrija contradições.\n\nPergunta:\n'+(lu?lu.content:'')+'\n\n'+ok.map((x,i)=>`Resposta ${i+1}:\n${x.v}`).join('\n\n');
+  try{const m=await ok[0].p.ask([{role:'user',content:sp}],sys);if(m&&m.trim())text=m.trim()}catch(e){}}
+ return{text}}
 
-/* Modos */
-function openModeSheet(){
-  const list = document.getElementById('modeList');
-  list.innerHTML = MODES.map(m => `
-    <button class="mode-opt" onclick="setBrain('${m.key}')">
-      <span class="icon">${m.icon}</span>
-      <span class="info">
-        <div class="name ${state.brain===m.key?'active':''}">${m.label}</div>
-        <div class="desc">${m.desc}</div>
-      </span>
-      ${state.brain===m.key ? '<span class="check">✓</span>' : ''}
-    </button>
-  `).join('');
-  document.getElementById('modeOverlay').classList.add('open');
-}
-function closeModeSheet(){ document.getElementById('modeOverlay').classList.remove('open'); }
-document.getElementById('modeBtnHome').addEventListener('click', openModeSheet);
-document.getElementById('modeBtnChat').addEventListener('click', openModeSheet);
-document.getElementById('closeSheetBtn').addEventListener('click', closeModeSheet);
-document.getElementById('closeSheetBackdrop').addEventListener('click', closeModeSheet);
+/* ---------- chat ---------- */
+const extractCode=t=>{const m=t.match(/```(?:html)?\n?([\s\S]*?)```/);return m?m[1].trim():null};
+const strip=t=>t.replace(/```(?:html)?\n?[\s\S]*?```/g,'').trim()||'✅ Código gerado — toque em Preview para ver.';
+function bubble(m){
+ const d=document.createElement('div');
+ if(m.role==='user'){d.className='bub user';d.textContent=m.content}
+ else{
+  d.className='bub';
+  const code=CODE.includes(m.mode)?extractCode(m.content):null;if(code)st.code=code;
+  d.innerHTML=`<div class="tag">Nexus LP · ${esc(lab(m.mode))}</div><div class="txt"></div><div class="acts"><button onclick="speak(this)">🔊</button><button onclick="copyT(this)">📋</button>${code?'<button onclick="go(\'preview\')">▶ Preview</button>':''}</div>`;
+  d.querySelector('.txt').textContent=code?strip(m.content):m.content}
+ $('msgs').appendChild(d);$('msgs').scrollTop=1e9;return d}
+function errBubble(lines){
+ const d=document.createElement('div');d.className='bub';
+ d.innerHTML=`<div class="err"><b>Não consegui responder agora.</b>${lines.map(l=>`<span>${esc(l)}</span>`).join('')}</div><button class="retry" onclick="this.closest('.bub').remove();run()">🔄 Tentar de novo</button>`;
+ $('msgs').appendChild(d);$('msgs').scrollTop=1e9}
+async function run(){
+ busy=true;$('send').disabled=true;
+ const th=document.createElement('div');th.className='bub dim';th.textContent='Pensando…';$('msgs').appendChild(th);$('msgs').scrollTop=1e9;
+ const cid=convo.id,mode=st.mode,provs=providers();
+ const out=provs.length?await askAll(convo.messages,mode,provs):{err:['Nenhuma IA configurada. Abra o menu → Configurações, cole uma chave e toque em Testar conexão.']};
+ th.remove();busy=false;$('send').disabled=false;
+ if(cid!==convo.id){if(out.text){const l=LS.g(KC,[]),r=l.find(c=>c.id===cid);if(r){r.messages.push({role:'assistant',content:out.text,mode});r.updatedAt=Date.now();LS.s(KC,l);renderRecents()}}return}
+ if(!out.text){errBubble(out.err);return}
+ const m={role:'assistant',content:out.text,mode};convo.messages.push(m);bubble(m);save()}
+async function send(){
+ const t=$('inp').value.trim();if((!t&&!att)||busy)return;
+ let c=t,img=null;
+ if(att){if(att.kind==='text')c=(t?t+'\n\n':'')+`Arquivo anexado (${att.name}):\n${att.content}`;else{img={t:att.type,b:att.b64};c=t||'(imagem anexada)'}}
+ const m={role:'user',content:c};if(img)m.image=img;
+ $('inp').value='';$('inp').style.height='auto';att=null;chip();fixes=0;
+ convo.messages.push(m);go('chat');bubble({role:'user',content:c+(img?' 📎':'')});save();await run()}
+$('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+$('inp').addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,110)+'px'});
+function chip(){const c=$('chip');c.style.display=att?'block':'none';c.innerHTML=att?`📎 ${esc(att.name)}<u onclick="att=null;chip()">remover</u>`:''}
+$('file').addEventListener('change',e=>{
+ const f=e.target.files[0];if(!f)return;e.target.value='';
+ if(f.size>8e6)return toast('Arquivo muito grande (máx 8MB).');
+ const r=new FileReader();
+ if(f.type.startsWith('image/')){r.onload=()=>{att={kind:'image',type:f.type,b64:r.result.split(',')[1],name:f.name};chip()};r.readAsDataURL(f)}
+ else{r.onload=()=>{att={kind:'text',content:r.result,name:f.name};chip()};r.readAsText(f)}});
+function copyT(b){const t=b.closest('.bub').querySelector('.txt').textContent;navigator.clipboard&&navigator.clipboard.writeText(t);toast('Copiado.')}
 
-function setBrain(key){
-  state.brain = key;
-  const m = MODES.find(x => x.key === key);
-  document.getElementById('modeIconHome').textContent = m.icon;
-  document.getElementById('modeLabelHome').textContent = m.label;
-  document.getElementById('modeIconChat').textContent = m.icon;
-  document.getElementById('modeLabelChat').textContent = m.label;
-  document.getElementById('chatModeLabel').textContent = m.icon + ' ' + m.label;
-  closeModeSheet();
-}
-
-/* Armazenamento e Conversas */
-function getPassword(){ return localStorage.getItem('nexuslp_password') || ''; }
-function hasPassword(){ return !!getPassword(); }
-
-function getKeys(){
-  return {
-    claude: localStorage.getItem('nexuslp_claude_key') || '',
-    gemini: localStorage.getItem('nexuslp_gemini_key') || ''
-  };
-}
-function getCustomProviders(){
-  try{ return JSON.parse(localStorage.getItem('nexuslp_custom_providers') || '[]'); }catch(e){ return []; }
-}
-function saveCustomProviders(list){ localStorage.setItem('nexuslp_custom_providers', JSON.stringify(list)); }
-
-function loadConversations(){
-  try{ return JSON.parse(localStorage.getItem('nexuslp_conversations') || '[]'); }catch(e){ return []; }
-}
-function saveConversations(list){ localStorage.setItem('nexuslp_conversations', JSON.stringify(list)); }
-
-let currentConversationId = null;
-let currentMessages = [];
-
-function makeTitle(txt){
-  const clean = txt.trim().replace(/\s+/g,' ');
-  return clean.length > 38 ? clean.slice(0,38) + '…' : clean;
-}
-
-function persistCurrentConversation(){
-  if(currentMessages.length === 0) return;
-  const list = loadConversations();
-  const firstUser = currentMessages.find(m => m.role === 'user');
-  const title = firstUser ? makeTitle(firstUser.content) : 'Conversa';
-  const idx = list.findIndex(c => c.id === currentConversationId);
-  const record = { id: currentConversationId, title, messages: currentMessages, updatedAt: Date.now() };
-  if(idx >= 0) list[idx] = record; else list.unshift(record);
-  saveConversations(list);
-  renderRecents();
-}
-
+/* ---------- conversas ---------- */
+function save(){
+ if(!convo.messages.length)return;
+ const l=LS.g(KC,[]),u=convo.messages.find(m=>m.role==='user');
+ const rec={id:convo.id,title:(u?u.content:'Conversa').replace(/\s+/g,' ').slice(0,40),messages:convo.messages.map(({role,content,mode})=>({role,content,mode})),updatedAt:Date.now()};
+ const i=l.findIndex(c=>c.id===convo.id);if(i>=0)l[i]=rec;else l.unshift(rec);
+ try{LS.s(KC,l.slice(0,50))}catch(e){}renderRecents()}
 function renderRecents(){
-  const list = loadConversations().sort((a,b) => b.updatedAt - a.updatedAt);
-  const el = document.getElementById('recentsList');
-  el.innerHTML = list.map(c => `
-    <button class="recent-item ${c.id === currentConversationId ? 'active' : ''}" onclick="loadConversationById('${c.id}')">
-      <span>${escapeHtml(c.title)}</span>
-      <span class="del" onclick="event.stopPropagation();deleteConvo('${c.id}')">✕</span>
-    </button>`).join('') || '<div style="color:var(--sub);font-size:12px;padding:8px;">Nenhuma conversa ainda.</div>';
-}
+ const l=LS.g(KC,[]).sort((a,b)=>b.updatedAt-a.updatedAt);
+ $('recent').innerHTML=l.map(c=>`<div onclick="openConvo('${c.id}')"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.title)}</span><i onclick="event.stopPropagation();delConvo('${c.id}')">✕</i></div>`).join('')||'<div>Nada por aqui ainda.</div>'}
+function openConvo(id){
+ const r=LS.g(KC,[]).find(c=>c.id===id);if(!r)return;
+ convo={id:r.id,messages:r.messages};st.code=BLANK;$('msgs').innerHTML='';convo.messages.forEach(bubble);go('chat')}
+function delConvo(id){LS.s(KC,LS.g(KC,[]).filter(c=>c.id!==id));if(id===convo.id)newConvo();renderRecents()}
+function newConvo(){convo={id:'c'+Date.now(),messages:[]};st.code=BLANK;fixes=0;$('msgs').innerHTML='';$('inp').value='';go('home')}
+renderRecents();
 
-window.deleteConvo = function(id){
-  const list = loadConversations().filter(c => c.id !== id);
-  saveConversations(list);
-  if(id === currentConversationId) startNewConversation();
-  renderRecents();
-}
+/* ---------- preview + autocorreção ---------- */
+function runPreview(){
+ const c='<script>onerror=function(m,s,l){parent.postMessage({__nx:1,m:m+" (linha "+l+")"},"*")};addEventListener("unhandledrejection",function(e){parent.postMessage({__nx:1,m:"Promise rejeitada: "+e.reason},"*")});<\/script>';
+ let h=st.code;h=h.includes('</head>')?h.replace('</head>',c+'</head>'):/<body[^>]*>/.test(h)?h.replace(/<body([^>]*)>/,'<body$1>'+c):c+h;
+ $('frame').srcdoc=h}
+addEventListener('message',e=>{if(e.source===$('frame').contentWindow&&e.data&&e.data.__nx)autofix(e.data.m)});
+async function autofix(msg){
+ const provs=providers();
+ if(!CODE.includes(st.mode)||fixes>=2||busy||!provs.length)return;
+ fixes++;busy=true;toast(`🔧 Corrigindo automaticamente (${fixes}/2)…`,9e4);
+ const hist=[...convo.messages,{role:'user',content:`O código gerou este erro ao executar: "${msg}". Devolva o arquivo HTML inteiro corrigido, só o bloco de código.`}];
+ const out=await askAll(hist,st.mode,provs);busy=false;
+ const code=out.text&&extractCode(out.text);
+ if(!code){toast('');return}
+ st.code=code;
+ for(let i=convo.messages.length-1;i>=0;i--)if(convo.messages[i].role==='assistant'){convo.messages[i].content=out.text;break}
+ save();toast('✅ Corrigido automaticamente.');runPreview()}
 
-window.loadConversationById = function(id){
-  const record = loadConversations().find(c => c.id === id);
-  if(!record) return;
-  currentConversationId = record.id;
-  currentMessages = record.messages;
-  const chatArea = document.getElementById('chatArea');
-  chatArea.innerHTML = '';
-  currentMessages.forEach(m => {
-    if(m.role === 'user') addUserBubble(m.content);
-    else addAiBubble(m.content, 'Nexus LP');
-  });
-  goScreen('chat');
-  renderRecents();
-}
+/* ---------- voz ---------- */
+function speak(b){
+ const s=window.speechSynthesis;if(!s)return toast('Este aparelho não tem leitura em voz.');
+ if(s.speaking||s.pending){s.cancel();b.textContent='🔊';return}
+ const t=b.closest('.bub').querySelector('.txt').textContent.replace(/[`*_#>]/g,''),ch=t.match(/[^.!?\n]+[.!?]*\s*/g)||[t],v=s.getVoices().find(x=>/^pt/i.test(x.lang));
+ b.textContent='⏸';
+ ch.forEach((c,i)=>{const u=new SpeechSynthesisUtterance(c);u.lang='pt-BR';if(v)u.voice=v;u.onerror=()=>b.textContent='🔊';if(i===ch.length-1)u.onend=()=>b.textContent='🔊';s.speak(u)})}
+let rec=null,lis=false;
+function mic(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR)return toast('Microfone de voz indisponível aqui. Use o microfone do teclado.',4000);
+ if(lis){rec.stop();return}
+ rec=new SR();rec.lang='pt-BR';rec.interimResults=true;rec.continuous=true;
+ const base=$('inp').value?$('inp').value+' ':'';
+ rec.onstart=()=>{lis=true;$('mic').classList.add('lis')};
+ rec.onresult=e=>{let t='';for(const r of e.results)t+=r[0].transcript;$('inp').value=base+t};
+ rec.onerror=e=>{if(/not-allowed|service/.test(e.error))toast('Sem permissão de microfone. Libere nas configurações do Android.',4000)};
+ rec.onend=()=>{lis=false;$('mic').classList.remove('lis')};
+ try{rec.start()}catch(e){}}
 
-function startNewConversation(){
-  currentConversationId = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-  currentMessages = [];
-  document.getElementById('chatArea').innerHTML = '';
-  renderRecents();
-  goScreen('home');
-}
-document.getElementById('newConvoBtn').addEventListener('click', startNewConversation);
-startNewConversation();
-
-/* Perfil */
-function getProfile(){
-  try{ return JSON.parse(localStorage.getItem('nexuslp_profile') || '{}'); }catch(e){ return {}; }
-}
-function applyProfile(){
-  const p = getProfile();
-  const name = p.name || 'Laiton';
-  const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase() || 'LP';
-  document.getElementById('profileAvatarBtn').textContent = initials;
-  document.getElementById('profileAvatarBig').textContent = initials;
-  document.getElementById('profileNameLabel').textContent = name;
-}
-applyProfile();
-
-document.getElementById('openProfile').addEventListener('click', ()=>{
-  closeSidebar();
-  document.getElementById('profileNameInput').value = getProfile().name || '';
-  document.getElementById('profileScreen').classList.add('open');
-});
-document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profileScreen').classList.remove('open'));
-document.getElementById('saveProfile').addEventListener('click', ()=>{
-  const name = document.getElementById('profileNameInput').value.trim();
-  localStorage.setItem('nexuslp_profile', JSON.stringify({ name }));
-  applyProfile();
-  document.getElementById('profileScreen').classList.remove('open');
-});
-
-/* Tela Todas as Conversas */
-document.getElementById('openAllConvos').addEventListener('click', ()=>{
-  closeSidebar();
-  renderAllConvosList('');
-  document.getElementById('allConvosScreen').classList.add('open');
-});
-document.getElementById('closeAllConvos').addEventListener('click', () => document.getElementById('allConvosScreen').classList.remove('open'));
-
-function renderAllConvosList(query){
-  const list = loadConversations().filter(c => !query || c.title.toLowerCase().includes(query.toLowerCase()));
-  document.getElementById('allConvosList').innerHTML = list.map(c => `
-    <button class="recent-item" style="padding:14px 12px;border-bottom:1px solid var(--border);border-radius:0;" onclick="loadConversationById('${c.id}');document.getElementById('allConvosScreen').classList.remove('open')">
-      <span>${escapeHtml(c.title)}</span>
-      <span class="del" onclick="event.stopPropagation();deleteConvo('${c.id}');renderAllConvosList(document.getElementById('searchConvos').value)">✕</span>
-    </button>`).join('') || '<p style="color:var(--sub);font-size:13px;padding:12px;">Nenhuma conversa encontrada.</p>';
-}
-document.getElementById('searchConvos').addEventListener('input', e => renderAllConvosList(e.target.value));
-
-/* Configurações & Trava */
-document.getElementById('openSettings').addEventListener('click', ()=>{
-  closeSidebar();
-  document.getElementById('lockError').style.display = 'none';
-  document.getElementById('lockInput').value = '';
-  document.getElementById('lockInputConfirm').value = '';
-  if(hasPassword()){
-    document.getElementById('lockTitle').textContent = 'Digite a senha para acessar as configurações';
-    document.getElementById('lockInputConfirm').style.display = 'none';
-  } else {
-    document.getElementById('lockTitle').textContent = 'Primeira vez — crie uma senha para proteger as chaves';
-    document.getElementById('lockInputConfirm').style.display = 'block';
-  }
-  document.getElementById('lockScreen').classList.add('open');
-});
-
-document.getElementById('lockSubmit').addEventListener('click', ()=>{
-  const val = document.getElementById('lockInput').value;
-  if(!hasPassword()){
-    const confirm = document.getElementById('lockInputConfirm').value;
-    if(!val || val.length < 4){ alert('A senha precisa ter pelo menos 4 caracteres.'); return; }
-    if(val !== confirm){ alert('As senhas não coincidem.'); return; }
-    localStorage.setItem('nexuslp_password', val);
-    document.getElementById('lockScreen').classList.remove('open');
-    openSettingsScreen();
-    return;
-  }
-  if(val === getPassword()){
-    document.getElementById('lockScreen').classList.remove('open');
-    openSettingsScreen();
-  } else {
-    document.getElementById('lockError').style.display = 'block';
-  }
-});
-
-function openSettingsScreen(){
-  const keys = getKeys();
-  document.getElementById('keyClaude').value = keys.claude;
-  document.getElementById('keyGemini').value = keys.gemini;
-  renderCustomProviders();
-  document.getElementById('diagInfo').textContent = 'Versão do app: v1 (Unificado)\nMicrofone nativo: ' + (window.SpeechRecognition || window.webkitSpeechRecognition ? 'Sim' : 'Não') + '\nSpeechSynthesis: ' + ('speechSynthesis' in window ? 'Sim' : 'Não');
-  document.getElementById('settingsScreen').classList.add('open');
-}
-document.getElementById('closeSettings').addEventListener('click', () => document.getElementById('settingsScreen').classList.remove('open'));
-
-function renderCustomProviders(){
-  const list = getCustomProviders();
-  const el = document.getElementById('customProviders');
-  el.innerHTML = list.map((p, i) => `
-    <div class="field key-card" data-card="${i}" style="margin-bottom:12px;">
-      <label>Nome do provedor</label>
-      <input type="text" data-p="name" data-i="${i}" value="${escAttr(p.name)}" placeholder="ex: Groq">
-      <label style="margin-top:8px;">URL da API (até /chat/completions)</label>
-      <input type="text" data-p="url" data-i="${i}" value="${escAttr(p.url)}" placeholder="https://api.groq.com/openai/v1/chat/completions">
-      <label style="margin-top:8px;">Modelo (nome exato)</label>
-      <input type="text" data-p="model" data-i="${i}" value="${escAttr(p.model)}" placeholder="ex: llama-3.3-70b-versatile">
-      <label style="margin-top:8px;">Chave de API</label>
-      <input type="password" data-p="key" data-i="${i}" value="${escAttr(p.key)}" placeholder="chave secreta">
-      <div class="btn-row">
-        <button class="mini-btn" data-test-custom="${i}">Testar conexão</button>
-        <button class="mini-btn danger" data-clear-custom="${i}">Apagar</button>
-      </div>
-      <div class="test-result" id="resultCustom${i}"></div>
-      <button class="link-btn" onclick="removeCustom(${i})">Remover este provedor</button>
-    </div>`).join('') || '<p style="color:var(--sub);font-size:12px;margin-bottom:8px;">Nenhum provedor extra.</p>';
-
-  el.querySelectorAll('input').forEach(inp => {
-    inp.addEventListener('input', ()=>{
-      const list = getCustomProviders();
-      if(list[inp.dataset.i]) list[inp.dataset.i][inp.dataset.p] = inp.value.trim();
-      saveCustomProviders(list);
-    });
-  });
-
-  el.querySelectorAll('[data-test-custom]').forEach(btn => {
-    btn.addEventListener('click', async ()=>{
-      const i = btn.dataset.testCustom;
-      const card = el.querySelector(`[data-card="${i}"]`);
-      const get = k => card.querySelector(`[data-p="${k}"]`).value.trim();
-      const prov = { name: get('name') || 'Provedor', url: get('url'), model: get('model'), key: get('key') };
-      const out = document.getElementById('resultCustom' + i);
-      if(!prov.url || !prov.model || !prov.key){ out.className='test-result err'; out.textContent='❌ Preencha URL, modelo e chave.'; return; }
-      out.className='test-result wait'; out.textContent='Testando...';
-      try{
-        await askCustomProvider([{ role:'user', content:'ok' }], prov);
-        out.className='test-result ok'; out.textContent='✅ Conectado com sucesso.';
-      }catch(e){
-        out.className='test-result err'; out.textContent='❌ ' + e.message;
-      }
-    });
-  });
-
-  el.querySelectorAll('[data-clear-custom]').forEach(btn => {
-    btn.addEventListener('click', ()=>{
-      const i = btn.dataset.clearCustom;
-      const list = getCustomProviders();
-      if(list[i]) list[i].key = '';
-      saveCustomProviders(list);
-      renderCustomProviders();
-    });
-  });
-}
-
-window.removeCustom = function(i){
-  const list = getCustomProviders();
-  list.splice(i, 1);
-  saveCustomProviders(list);
-  renderCustomProviders();
-}
-
-document.getElementById('addProvider').addEventListener('click', ()=>{
-  const list = getCustomProviders();
-  list.push({ name:'Groq', url:'https://api.groq.com/openai/v1/chat/completions', model:'llama-3.3-70b-versatile', key:'' });
-  saveCustomProviders(list);
-  renderCustomProviders();
-});
-
-document.getElementById('saveKeys').addEventListener('click', ()=>{
-  localStorage.setItem('nexuslp_claude_key', document.getElementById('keyClaude').value.trim());
-  localStorage.setItem('nexuslp_gemini_key', document.getElementById('keyGemini').value.trim());
-  const res = document.getElementById('saveResult');
-  res.className = 'test-result ok';
-  res.textContent = '✅ Configurações salvas com sucesso.';
-});
-
-document.querySelectorAll('[data-test]').forEach(btn => {
-  btn.addEventListener('click', async ()=>{
-    const which = btn.dataset.test;
-    const out = document.getElementById('result' + (which==='claude'?'Claude':'Gemini'));
-    const key = document.getElementById('key' + (which==='claude'?'Claude':'Gemini')).value.trim();
-    if(!key){ out.className='test-result err'; out.textContent='❌ Cole a chave.'; return; }
-    out.className='test-result wait'; out.textContent='Testando...';
-    try{
-      if(which === 'claude') await askClaude([{role:'user',content:'ok'}], key);
-      else await askGemini([{role:'user',content:'ok'}], key);
-      out.className='test-result ok'; out.textContent='✅ Conectado com sucesso.';
-    }catch(e){
-      out.className='test-result err'; out.textContent='❌ ' + e.message;
-    }
-  });
-});
-
-document.querySelectorAll('[data-clear]').forEach(btn => {
-  btn.addEventListener('click', ()=>{
-    const which = btn.dataset.clear;
-    document.getElementById('key' + (which==='claude'?'Claude':'Gemini')).value = '';
-    localStorage.removeItem('nexuslp_' + which + '_key');
-  });
-});
-
-document.getElementById('changePassword').addEventListener('click', ()=>{
-  const val = document.getElementById('newPasswordField').value;
-  if(!val || val.length < 4){ alert('Mínimo 4 caracteres.'); return; }
-  localStorage.setItem('nexuslp_password', val);
-  document.getElementById('newPasswordField').value = '';
-  alert('Senha atualizada.');
-});
-
-/* Comunicação com API */
-const NEXUS_SYSTEM_PROMPT = [
-  'Você é o Nexus LP, um assistente de IA avançado.',
-  'O Nexus LP foi idealizado e criado por Laiton Flugêncio Mondlane. Quando perguntarem quem criou você ou o Nexus LP, responda que foi o Laiton Flugêncio Mondlane. Fale dele com orgulho: ele tem apenas 15 anos e construiu um aplicativo incrível.',
-  'Responda sempre em português, com precisão, clareza e alta performance.'
-].join(' ');
-
-async function apiRequest(url, options, timeoutMs = 60000){
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  let res, raw;
-  try{
-    res = await fetch(url, { ...options, signal: ctrl.signal });
-    raw = await res.text();
-  }catch(e){
-    throw new Error('Falha de conexão com a rede ou bloqueio CORS.');
-  }finally{
-    clearTimeout(timer);
-  }
-  let data = null;
-  try{ data = raw ? JSON.parse(raw) : null; }catch(e){ data = null; }
-  if(!res.ok){
-    let msg = (data && (data.error?.message || data.message)) || raw;
-    throw new Error(`Erro ${res.status}:${(msg||'').slice(0,200)}`);
-  }
-  return data;
-}
-
-async function askClaude(messages, key){
-  const data = await apiRequest('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:4096, system: NEXUS_SYSTEM_PROMPT, messages })
-  });
-  return data.content?.[0]?.text || '';
-}
-
-async function askGemini(messages, key){
-  const contents = messages.map(m => ({ role: m.role==='assistant'?'model':'user', parts:[{ text: m.content }] }));
-  const data = await apiRequest(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json' },
-    body: JSON.stringify({ contents, systemInstruction:{ parts:[{ text: NEXUS_SYSTEM_PROMPT }] } })
-  });
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-}
-
-async function askCustomProvider(messages, provider){
-  const apiMessages = [{ role:'system', content: NEXUS_SYSTEM_PROMPT }, ...messages];
-  const data = await apiRequest(provider.url, {
-    method:'POST',
-    headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${provider.key}` },
-    body: JSON.stringify({ model: provider.model, messages: apiMessages })
-  });
-  return data.choices?.[0]?.message?.content || '';
-}
-
-function getActiveProviders(){
-  const keys = getKeys();
-  const list = [];
-  if(keys.claude) list.push({ name:'Claude', fn: msgs => askClaude(msgs, keys.claude) });
-  if(keys.gemini) list.push({ name:'Gemini', fn: msgs => askGemini(msgs, keys.gemini) });
-  getCustomProviders().filter(p => p.url && p.key && p.model).forEach(p => {
-    list.push({ name: p.name || 'Provedor', fn: msgs => askCustomProvider(msgs, p) });
-  });
-  return list;
-}
-
-/* Renderização do Chat */
-function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-function escAttr(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function formatPlain(s){
-  return escapeHtml(s)
-    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`\n]+)`/g, '<code style="background:#ffffff14;padding:1px 5px;border-radius:4px;">$1</code>');
-}
-
-function renderMessageContent(text){
-  const parts = text.split(/```(\w*)\n?([\s\S]*?)
+/* ---------- configurações ---------- */
+const res=(id,k,t)=>{const e=$(id);e.className='res '+k;e.textContent=t};
+function renderSettings(){
+ $('k_claude').value=cfg.claude;$('k_gemini').value=cfg.gemini;
+ $('customList').innerHTML=cfg.custom.map((p,i)=>`<div class="card"><label>Nome</label><input data-i="${i}" data-f="name" value="${ea(p.name)}" placeholder="ex: Groq">
+ <label>URL (até /chat/completions)</label><input data-i="${i}" data-f="url" value="${ea(p.url)}" placeholder="https://api.groq.com/openai/v1/chat/completions">
+ <label>Modelo</label><input data-i="${i}" data-f="model" value="${ea(p.model)}" placeholder="llama-3.3-70b-versatile">
+ <label>Chave</label><input type="password" data-i="${i}" data-f="key" value="${ea(p.key)}">
+ <div class="r"><button class="mini" onclick="testP('x${i}')">Testar conexão</button><button class="mini" onclick="clr('x${i}')">Apagar chave</button><button class="mini" onclick="rmProv(${i})">Remover</button></div><div class="res" id="r_x${i}"></div></div>`).join('')}
+function collect(show){
+ cfg.claude=$('k_claude').value.trim();cfg.gemini=$('k_gemini').value.trim();
+ document.querySelectorAll('#customList input').forEach(i=>{cfg.custom[i.dataset.i][i.dataset.f]=i.value.trim()});
+ LS.s(KG,cfg);if(show)res('r_save','ok',`✅ Salvo. ${providers().length} IA(s) pronta(s) para uso.`)}
+$('setBody').addEventListener('input',()=>collect(false));
+function addProv(){collect(false);cfg.custom.push({name:'',url:'',model:'',key:''});LS.s(KG,cfg);renderSettings()}
+function rmProv(i){if(!confirm('Remover este provedor?'))return;collect(false);cfg.custom.splice(i,1);LS.s(KG,cfg);renderSettings()}
+function clr(w){
+ if(w==='claude'||w==='gemini')cfg[w]='';else cfg.custom[+w.slice(1)].key='';
+ LS.s(KG,cfg);localStorage.removeItem('nexuslp_'+w+'_key');renderSettings();res('r_'+w,'wait','Chave apagada.')}
+async function testP(w){
+ collect(false);
+ const c=w[0]==='x'?cfg.custom[+w.slice(1)]:null;
+ const p=w==='claude'?cfg.claude&&mk.claude(cfg.claude):w==='gemini'?cfg.gemini&&mk.gemini(cfg.gemini):(c&&c.url&&c.key&&c.model?mk.custom(c):null);
+ if(!p)return res('r_'+w,'err','❌ Preencha os campos antes de testar.');
+ if(c&&!/^https:\/\//i.test(c.url))return res('r_'+w,'err','❌ A URL precisa começar com https://');
+ res('r_'+w,'wait','Testando…');
+ try{await p.ask([{role:'user',content:'Responda apenas com a palavra: ok'}],'');res('r_'+w,'ok','✅ Conectado com sucesso.')}
+ catch(e){res('r_'+w,'err','❌ '+e.message)}}
+</script></body></html>
