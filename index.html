@@ -342,9 +342,10 @@ function renderCustomProviders(){
       <button class="link-btn" data-remove-provider="${i}">Remover este provedor</button>
     </div>`).join('') || '<p class="hint">Nenhum provedor extra adicionado ainda.</p>';
 
-  // guarda automaticamente cada campo ao editar
+  // guarda automaticamente cada campo a cada letra digitada (não espera perder o foco,
+  // porque no teclado do Android o evento "change" às vezes nunca dispara)
   el.querySelectorAll('input').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
+    inp.addEventListener('input', ()=>{
       const list = getCustomProviders();
       if(!list[inp.dataset.i]) return;
       list[inp.dataset.i][inp.dataset.p] = inp.value.trim();
@@ -671,11 +672,11 @@ document.querySelectorAll('[data-clear]').forEach(btn=>{
     setResult(document.getElementById('result' + cap), 'wait', 'Chave apagada.');
   });
 });
-// guarda Claude/Gemini automaticamente ao terminar de digitar (evita perder a chave se esquecer de tocar em Salvar)
+// guarda Claude/Gemini automaticamente a cada letra digitada (mesmo motivo acima)
 ['Claude','Gemini'].forEach(cap=>{
-  document.getElementById('key' + cap).addEventListener('change', ()=>{
+  document.getElementById('key' + cap).addEventListener('input', ()=>{
     const v = document.getElementById('key' + cap).value.trim();
-    if(v) localStorage.setItem('nexuslp_' + cap.toLowerCase() + '_key', v);
+    localStorage.setItem('nexuslp_' + cap.toLowerCase() + '_key', v);
   });
 });
 
@@ -822,10 +823,15 @@ function addAiBubble(text, answeredBy){
   wrap.querySelector('[data-like]').addEventListener('click', function(){ this.classList.toggle('active'); });
   wrap.querySelector('[data-dislike]').addEventListener('click', function(){ this.classList.toggle('active'); });
   wrap.querySelector('[data-regen]').addEventListener('click', ()=>{
-    if(currentMessages.length && currentMessages[currentMessages.length-1].role === 'assistant'){
-      currentMessages.pop();
-    }
-    runQuery(wrap);
+    // acha a posição real desta bolha na conversa, contando as mensagens antes dela na tela
+    // (não usa sempre "a última mensagem", porque isso bagunçava conversas antigas reabertas)
+    const siblings = Array.from(chatArea.children).filter(w => w.classList && w.classList.contains('msg-wrap') && !w.classList.contains('error-wrap'));
+    const idx = siblings.indexOf(wrap);
+    if(idx === -1) return;
+    currentMessages = currentMessages.slice(0, idx);
+    for(let i = siblings.length - 1; i >= idx; i--){ siblings[i].remove(); }
+    persistCurrentConversation();
+    runQuery();
   });
   wrap.querySelector('[data-speak]').addEventListener('click', function(){
     speakNative(text, this);
