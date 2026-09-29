@@ -1,597 +1,4 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>T-Cloud</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{ color-scheme: dark; }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;overflow-x:hidden;}
-  body{
-    background:#12141a;color:#e9e8e4;font-family:'Space Grotesk',system-ui,sans-serif;
-    height:100vh;height:100dvh;width:100%;max-width:100vw;overflow:hidden;
-    padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
-  }
-  button{font-family:inherit;touch-action:manipulation;}
-  .shell{display:flex;flex-direction:column;height:100%;position:relative;}
-  .screen{display:none;flex-direction:column;flex:1;min-height:0;width:100%;}
-  .screen.active{display:flex;}
-
-  /* topo */
-  .topbar{display:flex;align-items:center;gap:8px;padding:16px 16px 0;flex-shrink:0;}
-  .topbar.chat-top{padding:16px 16px 8px;}
-  .ham{font-size:24px;background:none;border:none;color:#e9e8e4;line-height:1;padding:2px;}
-  .mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#e0a458,#5fa8a0);flex-shrink:0;}
-  .spacer{flex:1;}
-  .mode-label{font-size:13px;color:#5c6270;margin-left:2px;}
-  .pill-btn-flat{font-size:12px;padding:7px 12px;border-radius:20px;background:#1f232d;border:1px solid #2a2f3a;color:#e0a458;font-family:inherit;}
-
-  /* home */
-  .center{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 24px;}
-  .big-mark{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,#e0a458,#5fa8a0);}
-  h1{font-size:28px;font-weight:600;text-align:center;}
-
-  /* chat */
-  .msgs{flex:1;min-height:0;width:100%;max-width:100%;overflow-y:auto;overflow-x:auto;padding:8px 16px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch;}
-  .bubble{max-width:88%;width:fit-content;font-size:15px;line-height:1.55;word-break:break-word;white-space:pre-wrap;}
-  .bubble.user{align-self:flex-end;background:#1f232d;border-radius:16px 16px 4px 16px;padding:10px 14px;}
-  .bubble.ai{align-self:flex-start;}
-  .bubble .tag{font-size:11px;color:#5c6270;margin-bottom:4px;}
-  .speak-btn{margin-top:6px;width:24px;height:24px;font-size:11px;border-radius:6px;border:1px solid #2a2f3a;background:none;color:#5c6270;}
-  .speak-btn.speaking{border-color:#5fa8a0;color:#5fa8a0;}
-  .retry-btn{margin-top:6px;font-size:12.5px;padding:7px 14px;border-radius:20px;background:#1f232d;border:1px solid #2a2f3a;color:#e0a458;}
-  .retry-btn:disabled{opacity:.5;}
-  .thinking{color:#5c6270;font-size:15px;}
-
-  /* composer */
-  .composer-wrap{padding:0 16px 16px;flex-shrink:0;}
-  .perm-hint{font-size:11px;color:#5c6270;margin-bottom:8px;text-align:center;}
-  .composer{border-radius:24px;background:#181b23;border:1px solid #2a2f3a;padding:12px;}
-  .composer textarea{width:100%;background:none;border:none;outline:none;color:#e9e8e4;font-family:inherit;font-size:15px;padding:4px 4px 10px;resize:none;max-height:110px;}
-  .composer textarea::placeholder{color:#5c6270;}
-  .row{display:flex;align-items:center;gap:8px;}
-  .pill-btn{height:36px;padding:0 12px;border-radius:20px;background:#1f232d;border:1px solid #2a2f3a;color:#e9e8e4;font-size:12.5px;display:flex;align-items:center;gap:6px;}
-  .round{width:36px;height:36px;border-radius:50%;background:#1f232d;border:1px solid #2a2f3a;color:#e9e8e4;font-size:16px;display:grid;place-items:center;cursor:pointer;}
-  .round.send{background:#e0a458;color:#1a1305;border:none;}
-  .round.send:disabled{opacity:.4;}
-  .round.mic.listening{background:#c96a5a;border-color:#c96a5a;color:#fff;animation:pulse 1.1s infinite;}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(201,106,90,.5)}70%{box-shadow:0 0 0 8px rgba(201,106,90,0)}100%{box-shadow:0 0 0 0 rgba(201,106,90,0)}}
-  input[type=file]{display:none;}
-
-  /* preview */
-  .preview-top{display:flex;align-items:center;gap:12px;padding:0 16px;height:56px;border-bottom:1px solid #2a2f3a;background:#181b23;flex-shrink:0;}
-  .back{font-size:20px;background:none;border:none;color:#e9e8e4;}
-  .iframe-wrap{flex:1;min-height:0;width:100%;overflow:hidden;background:#fff;position:relative;}
-  .iframe-wrap iframe{width:100%;height:100%;border:none;display:block;}
-  .fix-toast{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:#181b23;border:1px solid #2a2f3a;color:#e9e8e4;font-size:12.5px;padding:8px 14px;border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.4);display:none;}
-  .fix-toast.show{display:block;}
-
-  /* overlays (sidebar + mode sheet) */
-  .overlay{position:fixed;inset:0;z-index:50;pointer-events:none;}
-  .overlay.open{pointer-events:auto;}
-  .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);opacity:0;transition:opacity .2s;}
-  .overlay.open .backdrop{opacity:1;}
-
-  .drawer{position:absolute;inset:0 15vw 0 0;max-width:340px;background:#12141a;transform:translateX(-100%);transition:transform .22s;display:flex;flex-direction:column;}
-  .overlay.open .drawer{transform:translateX(0);}
-  .drawer-head{display:flex;align-items:center;gap:10px;padding:24px 20px 16px;}
-  .drawer-head span{font-size:22px;font-weight:600;}
-  .nav{padding:0 12px;display:flex;flex-direction:column;gap:2px;}
-  .nav button{display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;background:none;border:none;color:#e9e8e4;font-size:15px;text-align:left;}
-  .nav button:active{background:#1f232d;}
-  .divider{height:1px;background:#2a2f3a;margin:12px 16px;}
-  .section-label{padding:0 20px;font-size:13px;color:#5c6270;margin-bottom:4px;}
-  .recent{flex:1;overflow:auto;padding:0 12px;}
-  .recent div{padding:10px 12px;border-radius:8px;font-size:14px;color:#9aa0ac;}
-  .drawer-foot{display:flex;align-items:center;gap:12px;padding:16px;}
-  .avatar{width:40px;height:40px;border-radius:50%;background:#e0a458;color:#1a1305;font-weight:600;font-size:13px;display:grid;place-items:center;}
-  .new-conv{flex:1;height:44px;border-radius:22px;background:#e9e8e4;color:#12141a;font-weight:500;font-size:14px;border:none;}
-
-  .sheet{position:absolute;inset-inline:0;bottom:0;background:#181b23;border-top:1px solid #2a2f3a;border-radius:24px 24px 0 0;transform:translateY(100%);transition:transform .2s;padding-bottom:env(safe-area-inset-bottom,16px);}
-  .overlay.open .sheet{transform:translateY(0);}
-  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 12px;}
-  .sheet-head span{font-size:17px;font-weight:600;}
-  .sheet-head button{background:none;border:none;color:#5c6270;font-size:20px;}
-  .sheet-list{padding:0 8px 8px;}
-  .mode-opt{width:100%;display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:12px;background:none;border:none;text-align:left;}
-  .mode-opt:active{background:#1f232d;}
-  .mode-opt .icon{font-size:20px;}
-  .mode-opt .info{flex:1;min-width:0;}
-  .mode-opt .name{font-size:15px;color:#e9e8e4;}
-  .mode-opt .name.active{color:#e0a458;font-weight:500;}
-  .mode-opt .desc{font-size:12.5px;color:#5c6270;}
-  .mode-opt .check{color:#e0a458;font-size:17px;}
-</style>
-</head>
-<body>
-<div class="shell" id="shell">
-
-  <!-- HOME -->
-  <div class="screen active" id="screen-home">
-    <div class="topbar">
-      <button class="ham" onclick="openSidebar()">☰</button>
-      <div class="spacer"></div>
-      <div class="mark"></div>
-    </div>
-    <div class="center">
-      <div class="big-mark"></div>
-      <h1 id="greet"></h1>
-    </div>
-    <div class="composer-wrap">
-      <div id="permHintHome" class="perm-hint" style="display:none">Voz/mic bloqueados? Confira a permissão do app nas configurações do Android.</div>
-      <div class="composer">
-        <textarea id="inputHome" rows="1" placeholder="Conversa com o T-Cloud..." onkeydown="onComposerKey(event,'home')"></textarea>
-        <div class="row">
-          <label class="round">➕<input type="file" accept="image/*,.pdf,.txt,.js,.html,.css" onchange="handleFile(event)"></label>
-          <button class="pill-btn" onclick="openModeSheet()"><span id="modeIconHome">🛠️</span><span id="modeLabelHome" style="color:#e0a458">Engenheiro</span></button>
-          <div class="spacer"></div>
-          <button class="round mic" id="micBtnHome" onclick="toggleMic('home')">🎙️</button>
-          <button class="round send" onclick="sendMessage('home')">➤</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CHAT -->
-  <div class="screen" id="screen-chat">
-    <div class="topbar chat-top">
-      <button class="ham" onclick="openSidebar()">☰</button>
-      <span class="mode-label" id="chatModeLabel">🛠️ Engenheiro</span>
-      <div class="spacer"></div>
-      <button class="pill-btn-flat" onclick="goScreen('preview')">Preview</button>
-    </div>
-    <div class="msgs" id="msgs"></div>
-    <div class="composer-wrap">
-      <div id="permHintChat" class="perm-hint" style="display:none">Voz/mic bloqueados? Confira a permissão do app nas configurações do Android.</div>
-      <div class="composer">
-        <textarea id="inputChat" rows="1" placeholder="Peça um app, ou só converse..." onkeydown="onComposerKey(event,'chat')"></textarea>
-        <div class="row">
-          <label class="round">➕<input type="file" accept="image/*,.pdf,.txt,.js,.html,.css" onchange="handleFile(event)"></label>
-          <button class="pill-btn" onclick="openModeSheet()"><span id="modeIconChat">🛠️</span><span id="modeLabelChat" style="color:#e0a458">Engenheiro</span></button>
-          <div class="spacer"></div>
-          <button class="round mic" id="micBtnChat" onclick="toggleMic('chat')">🎙️</button>
-          <button class="round send" id="sendBtnChat" onclick="sendMessage('chat')">➤</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PREVIEW -->
-  <div class="screen" id="screen-preview">
-    <div class="preview-top">
-      <button class="back" onclick="goScreen(hasMessages() ? 'chat' : 'home')">←</button>
-      <span style="font-size:15px;font-weight:500;">Preview</span>
-      <div class="spacer"></div>
-      <button class="pill-btn-flat" onclick="window.open('https://www.pwabuilder.com','_blank')">📦 Instalar APK</button>
-    </div>
-    <div class="iframe-wrap">
-      <iframe id="renderFrame" sandbox="allow-scripts" title="preview"></iframe>
-      <div class="fix-toast" id="fixToast"></div>
-    </div>
-  </div>
-
-  <!-- SIDEBAR -->
-  <div class="overlay" id="sidebarOverlay">
-    <div class="backdrop" onclick="closeSidebar()"></div>
-    <div class="drawer">
-      <div class="drawer-head"><div class="mark" style="width:30px;height:30px"></div><span>T-Cloud</span></div>
-      <div class="nav">
-        <button onclick="closeSidebar();goScreen(hasMessages()?'chat':'home')">💬 Conversas</button>
-        <button>📁 Projetos</button>
-        <button onclick="closeSidebar();goScreen('preview')">🧩 Artefactos</button>
-      </div>
-      <div class="divider"></div>
-      <div class="section-label">Recentes</div>
-      <div class="recent" id="recentList"><div>Nada por aqui ainda.</div></div>
-      <div class="drawer-foot">
-        <div class="avatar">VC</div>
-        <button class="new-conv" onclick="startNewConversation()">+ Nova conversa</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODE SHEET -->
-  <div class="overlay" id="modeOverlay">
-    <div class="backdrop" onclick="closeModeSheet()"></div>
-    <div class="sheet">
-      <div class="sheet-head"><span>Selecionar motor</span><button onclick="closeModeSheet()">✕</button></div>
-      <div class="sheet-list" id="modeList"></div>
-    </div>
-  </div>
-
-</div>
-
-<script>
-/* ===================== config ===================== */
-// Troque pela URL do seu backend (server.js) depois do deploy.
-// Cole aqui a URL do seu backend no Render (passo a passo já enviado antes).
-// Sem isso preenchido, o app não consegue falar com a IA de jeito nenhum.
-const BACKEND_URL = ''; // ex: 'https://tcloud-backend.onrender.com'
-
-/* ===================== motores ===================== */
-const MODES = [
-  { key:'3d', label:'3D Game', icon:'🎮', desc:'Jogos e cenas 3D com Three.js/WebGL' },
-  { key:'engineer', label:'Engenheiro', icon:'🛠️', desc:'Apps e sites completos, código limpo' },
-  { key:'professional', label:'Profissional', icon:'💼', desc:'Documentos, planos e comunicação de trabalho' },
-  { key:'partner', label:'Parceiro', icon:'🤝', desc:'Conversa natural, desabafos, bate-papo' }
-];
-const CODE_MODES = ['3d','engineer'];
-
-const CODE_OUTPUT_RULE = 'Saída obrigatória: um único bloco ```html``` completo e autocontido, pronto para um <iframe srcdoc>, sem cortar no meio. ' +
-  'Depois do bloco, no máximo 2 frases explicando a mudança. ' +
-  'Se receber um erro de execução do preview, devolva o arquivo inteiro corrigido, não um trecho.';
-
-const RULES = {
-  partner: 'Você é o T-Cloud, conversando no modo Parceiro. Fale de um jeito natural, caloroso e direto — como um amigo de confiança, não como um atendente. ' +
-    'Nada de respostas engessadas, listas desnecessárias ou tom corporativo. Pode usar frases curtas, concordar, discordar com jeito, fazer piada leve quando fizer sentido. ' +
-    'Pense em silêncio qual é a necessidade real por trás da mensagem antes de responder — às vezes a pessoa só quer desabafar, não quer solução. Não interrogue à toa. ' +
-    'Responda em português do Brasil, em texto corrido, do jeito que uma pessoa real escreveria numa conversa.',
-  professional: 'Você é o T-Cloud no modo Profissional: ajuda com documentos, planos, e-mails, apresentações e comunicação de trabalho. ' +
-    'Tom claro, objetivo e educado, sem ser seco nem robótico. Estruture com títulos/tópicos só quando isso realmente ajuda a leitura. ' +
-    'Se o pedido for claramente para gerar um app/jogo funcional, diga em 1 frase que isso fica melhor no modo Engenheiro ou 3D Game. ' +
-    'Responda em português do Brasil.',
-  engineer: 'Você é o T-Cloud no modo Engenheiro: projeta e escreve apps/sites web completos. ' +
-    'Quando o pedido for curto, expanda a intenção internamente (escopo, telas, riscos) antes de codar, sem perguntar de volta salvo ambiguidade real. ' +
-    'Pense em arquitetura e bugs prováveis em silêncio; mostre só a conclusão. ' + CODE_OUTPUT_RULE + ' Responda em português do Brasil.',
-  '3d': 'Você é o T-Cloud no modo 3D Game: projeta e escreve jogos e cenas 3D completos usando Three.js (UMD, via cdnjs) e WebGL. ' +
-    'Estruture com cena, câmera, luzes e loop de renderização via requestAnimationFrame; separe input, física e câmera em funções distintas. ' +
-    'Pense em arquitetura, performance e bugs prováveis em silêncio; mostre só a conclusão. ' + CODE_OUTPUT_RULE + ' Responda em português do Brasil.'
-};
-
-/* ===================== estado ===================== */
-let state = {
-  screen: 'home',
-  brain: 'engineer',
-  messages: [],       // {role, text, tag}
-  turns: [],          // {role, content} — enviado ao backend
-  recentTitles: [],
-  busy: false,
-  listening: false,
-  code: '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:20px;color:#333">Peça um app no chat — o código aparece aqui.</body></html>',
-  autoFixCount: 0
-};
-let recognition = null;
-
-/* ===================== helpers ===================== */
-function greetingText(){
-  const h = new Date().getHours();
-  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-}
-function hasMessages(){ return state.messages.length > 0; }
-
-function buildEngineeredPrompt(rawText, brain){
-  const isCode = CODE_MODES.includes(brain);
-  const base = rawText.trim() || (isCode ? 'Crie um app simples de demonstração.' : 'Só quero conversar um pouco.');
-  if(isCode){
-    const hint3d = brain === '3d' ? ' Use Three.js (cdnjs, UMD) e trate isso como uma cena/jogo 3D.' : '';
-    return base + `\n\n[instrução interna — não mencionar: boas práticas de UX mobile-first, nomes claros, tratar casos de borda, HTML completo sem cortes.${hint3d}]`;
-  }
-  if(brain === 'professional') return base + '\n\n[instrução interna — não mencionar: tom profissional, claro e objetivo.]';
-  return base + '\n\n[instrução interna — não mencionar: tom acolhedor e direto, sem soar roteirizado.]';
-}
-
-function extractCode(text){
-  const m = text.match(/```(?:html)?\n?([\s\S]*?)```/);
-  return m ? m[1].trim() : null;
-}
-function stripCodeForChat(text){
-  const cleaned = text.replace(/```(?:html)?\n?[\s\S]*?```/g, '').trim();
-  return cleaned || '✅ Código gerado — toque em "Preview" para ver.';
-}
-function injectErrorCatcher(html){
-  const catcher = `<script>
-    window.onerror = function(msg, src, line){ try{ parent.postMessage({__tcloud_error:true, message:String(msg)+' (linha '+line+')'}, '*'); }catch(e){} };
-    window.addEventListener('unhandledrejection', function(e){ try{ parent.postMessage({__tcloud_error:true, message:'Promise rejeitada: '+String(e.reason)}, '*'); }catch(err){} });
-  <\/script>`;
-  if(html.includes('</head>')) return html.replace('</head>', catcher + '</head>');
-  if(/<body[^>]*>/.test(html)) return html.replace(/<body([^>]*)>/, `<body$1>${catcher}`);
-  return catcher + html;
-}
-
-/* ===================== chamada ao backend, sem simulação ===================== */
-const RETRY_DELAYS = [1000, 2000, 4000, 8000]; // backoff silencioso entre tentativas
-
-async function callBackendOnce(engineeredPrompt, brain){
-  if(!BACKEND_URL) return null;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
-  try{
-    const body = { system: RULES[brain], messages: [...state.turns.slice(0,-1), { role:'user', content: engineeredPrompt }] };
-    const r = await fetch(BACKEND_URL + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), signal: controller.signal });
-    if(!r.ok) return null;
-    const data = await r.json();
-    if(!data || !data.text) return null;
-    return { text: data.text, truncated: !!data.truncated };
-  }catch(e){
-    return null;
-  }finally{
-    clearTimeout(timeout);
-  }
-}
-
-/** Chamada com reconexão automática e silenciosa: tenta de novo em segundo
- *  plano (sem popup, sem texto técnico) antes de desistir de vez. */
-async function askModel(engineeredPrompt, brain){
-  for(let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++){
-    const result = await callBackendOnce(engineeredPrompt, brain);
-    if(result) return result;
-    if(attempt < RETRY_DELAYS.length) await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
-  }
-  return null;
-}
-
-/* ===================== navegação de telas ===================== */
-function goScreen(name){
-  state.screen = name;
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-}
-function openSidebar(){ document.getElementById('sidebarOverlay').classList.add('open'); }
-function closeSidebar(){ document.getElementById('sidebarOverlay').classList.remove('open'); }
-function openModeSheet(){ renderModeList(); document.getElementById('modeOverlay').classList.add('open'); }
-function closeModeSheet(){ document.getElementById('modeOverlay').classList.remove('open'); }
-
-function renderModeList(){
-  const list = document.getElementById('modeList');
-  list.innerHTML = MODES.map(m => `
-    <button class="mode-opt" onclick="setBrain('${m.key}')">
-      <span class="icon">${m.icon}</span>
-      <span class="info">
-        <div class="name ${state.brain===m.key?'active':''}">${m.label}</div>
-        <div class="desc">${m.desc}</div>
-      </span>
-      ${state.brain===m.key ? '<span class="check">✓</span>' : ''}
-    </button>
-  `).join('');
-}
-function setBrain(key){
-  state.brain = key;
-  const m = MODES.find(x => x.key === key);
-  document.getElementById('modeIconHome').textContent = m.icon;
-  document.getElementById('modeLabelHome').textContent = m.label;
-  document.getElementById('modeIconChat').textContent = m.icon;
-  document.getElementById('modeLabelChat').textContent = m.label;
-  document.getElementById('chatModeLabel').textContent = m.icon + ' ' + m.label;
-  closeModeSheet();
-}
-
-function startNewConversation(){
-  if(state.messages.length){
-    const firstUser = state.messages.find(m => m.role === 'user');
-    state.recentTitles.unshift((firstUser ? firstUser.text : 'Conversa').slice(0,40));
-    state.recentTitles = state.recentTitles.slice(0,8);
-    renderRecent();
-  }
-  state.turns = [];
-  state.messages = [];
-  state.autoFixCount = 0;
-  document.getElementById('msgs').innerHTML = '';
-  document.getElementById('inputHome').value = '';
-  document.getElementById('inputChat').value = '';
-  goScreen('home');
-  closeSidebar();
-}
-function renderRecent(){
-  const el = document.getElementById('recentList');
-  el.innerHTML = state.recentTitles.length ? state.recentTitles.map(t => `<div>${escapeHtml(t)}</div>`).join('') : '<div>Nada por aqui ainda.</div>';
-}
-
-/* ===================== chat ===================== */
-function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-
-function onComposerKey(e, from){
-  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(from); }
-}
-
-function addMessageEl(role, text, tag, failed){
-  const msgs = document.getElementById('msgs');
-  const div = document.createElement('div');
-  div.className = 'bubble ' + (role === 'user' ? 'user' : 'ai');
-  let html = '';
-  if(tag) html += `<div class="tag">${escapeHtml(tag)}</div>`;
-  html += `<div class="txt"></div>`;
-  if(role === 'assistant' && !failed) html += `<button class="speak-btn" onclick="speak(this)">🔊</button>`;
-  if(failed) html += `<button class="retry-btn" onclick="retryLastMessage(this)">↻ Tentar de novo</button>`;
-  div.innerHTML = html;
-  div.querySelector('.txt').textContent = text;
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return div;
-}
-
-let lastFailed = null; // { prompt, brain }
-
-async function sendMessage(from){
-  const inputEl = document.getElementById(from === 'home' ? 'inputHome' : 'inputChat');
-  const text = inputEl.value.trim();
-  if(!text || state.busy) return;
-  state.autoFixCount = 0;
-
-  if(state.screen === 'home') goScreen('chat');
-  document.getElementById('inputHome').value = '';
-  document.getElementById('inputChat').value = '';
-  state.busy = true;
-  document.getElementById('sendBtnChat').disabled = true;
-
-  addMessageEl('user', text);
-  state.turns.push({ role:'user', content: text });
-
-  const engineered = buildEngineeredPrompt(text, state.brain);
-  const result = await askModel(engineered, state.brain);
-
-  if(!result){
-    state.turns.pop(); // não deixa o turno "no ar" — reenviamos do zero no retry
-    lastFailed = { prompt: engineered, brain: state.brain };
-    addMessageEl('assistant', 'Não consegui responder agora.', 'T-Cloud', true);
-    state.busy = false;
-    document.getElementById('sendBtnChat').disabled = false;
-    return;
-  }
-
-  const { text: reply, truncated } = result;
-  state.turns.push({ role:'assistant', content: reply });
-  const modeInfo = MODES.find(m => m.key === state.brain);
-  const isCode = CODE_MODES.includes(state.brain);
-  addMessageEl('assistant', isCode ? stripCodeForChat(reply) : reply, `T-Cloud · ${modeInfo.label}`);
-
-  if(isCode){
-    const extracted = extractCode(reply);
-    if(extracted) state.code = extracted;
-  }
-
-  if(truncated){
-    state.turns.push({ role:'user', content:'Continue exatamente de onde parou, sem repetir, até fechar o bloco de código.' });
-    const cont = await askModel(state.turns[state.turns.length-1].content, state.brain);
-    if(cont){
-      state.turns.push({ role:'assistant', content: cont.text });
-      addMessageEl('assistant', isCode ? stripCodeForChat(cont.text) : cont.text, 'T-Cloud · continuação');
-      const extracted2 = extractCode(cont.text);
-      if(extracted2) state.code = extracted2;
-    }
-  }
-
-  state.busy = false;
-  document.getElementById('sendBtnChat').disabled = false;
-}
-
-async function retryLastMessage(btn){
-  if(!lastFailed || state.busy) return;
-  const { prompt, brain } = lastFailed;
-  state.busy = true;
-  btn.disabled = true;
-  btn.textContent = '↻ Tentando...';
-
-  const result = await askModel(prompt, brain);
-  if(!result){ btn.disabled = false; btn.textContent = '↻ Tentar de novo'; state.busy = false; return; }
-
-  const { text: reply, truncated } = result;
-  state.turns.push({ role:'user', content: prompt });
-  state.turns.push({ role:'assistant', content: reply });
-  const modeInfo = MODES.find(m => m.key === brain);
-  const isCode = CODE_MODES.includes(brain);
-
-  const bubble = btn.closest('.bubble');
-  bubble.querySelector('.tag').textContent = `T-Cloud · ${modeInfo.label}`;
-  bubble.querySelector('.txt').textContent = isCode ? stripCodeForChat(reply) : reply;
-  btn.remove();
-  const speakBtn = document.createElement('button');
-  speakBtn.className = 'speak-btn'; speakBtn.textContent = '🔊'; speakBtn.onclick = () => speak(speakBtn);
-  bubble.appendChild(speakBtn);
-
-  if(isCode){
-    const extracted = extractCode(reply);
-    if(extracted) state.code = extracted;
-  }
-  lastFailed = null;
-
-  if(truncated){
-    state.turns.push({ role:'user', content:'Continue exatamente de onde parou, sem repetir, até fechar o bloco de código.' });
-    const cont = await askModel(state.turns[state.turns.length-1].content, brain);
-    if(cont){
-      state.turns.push({ role:'assistant', content: cont.text });
-      addMessageEl('assistant', isCode ? stripCodeForChat(cont.text) : cont.text, 'T-Cloud · continuação');
-      const extracted2 = extractCode(cont.text);
-      if(extracted2) state.code = extracted2;
-    }
-  }
-  state.busy = false;
-}
-
-/* ===================== autocorreção silenciosa ===================== */
-window.addEventListener('message', (e) => {
-  if(e.data && e.data.__tcloud_error) handleRenderError(e.data.message);
-});
-
-async function handleRenderError(errorMessage){
-  if(!CODE_MODES.includes(state.brain) || state.autoFixCount >= 2) return;
-  state.autoFixCount++;
-  showFixToast(`🔧 Corrigindo automaticamente (${state.autoFixCount}/2)...`);
-
-  const fixPrompt = `O código a seguir gerou este erro ao executar: "${errorMessage}". Reescreva o arquivo inteiro corrigido. Só o bloco de código.\n\n\`\`\`html\n${state.code}\n\`\`\``;
-  state.turns.push({ role:'user', content: fixPrompt });
-  const result = await askModel(fixPrompt, state.brain);
-
-  if(!result){ state.turns.pop(); hideFixToast(); return; } // reconexão já tentou várias vezes; desiste em silêncio
-
-  state.turns.push({ role:'assistant', content: result.text }); // fica só no contexto, não aparece no chat
-  const extracted = extractCode(result.text);
-  if(extracted) state.code = extracted;
-  showFixToast(extracted ? '✅ Corrigido automaticamente.' : null);
-  if(extracted) setTimeout(hideFixToast, 2500); else hideFixToast();
-  runPreview();
-}
-function showFixToast(msg){ if(!msg){ hideFixToast(); return; } const t = document.getElementById('fixToast'); t.textContent = msg; t.classList.add('show'); }
-function hideFixToast(){ document.getElementById('fixToast').classList.remove('show'); }
-
-function runPreview(){
-  document.getElementById('renderFrame').srcdoc = injectErrorCatcher(state.code);
-}
-// atualiza o preview sempre que a tela de preview é aberta
-const previewObserver = () => { if(state.screen === 'preview') runPreview(); };
-
-/* ===================== TTS ===================== */
-function speak(btn){
-  const text = btn.parentElement.querySelector('.txt').textContent;
-  if(!('speechSynthesis' in window)){ showPermHint(); return; }
-  if(speechSynthesis.speaking){ speechSynthesis.cancel(); btn.classList.remove('speaking'); return; }
-  speechSynthesis.cancel();
-  setTimeout(() => {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'pt-BR';
-    let started = false;
-    u.onstart = () => { started = true; btn.classList.add('speaking'); };
-    u.onend = () => btn.classList.remove('speaking');
-    u.onerror = () => { btn.classList.remove('speaking'); showPermHint(); };
-    speechSynthesis.speak(u);
-    setTimeout(() => { if(!started){ btn.classList.remove('speaking'); showPermHint(); } }, 1500);
-  }, 60);
-}
-
-/* ===================== STT ===================== */
-function toggleMic(from){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const micBtn = document.getElementById(from === 'home' ? 'micBtnHome' : 'micBtnChat');
-  if(!SR){ showPermHint(); return; }
-  if(state.listening){ recognition && recognition.stop(); return; }
-  recognition = new SR();
-  recognition.lang = 'pt-BR'; recognition.interimResults = true; recognition.continuous = true;
-  const inputEl = document.getElementById(from === 'home' ? 'inputHome' : 'inputChat');
-  const base = inputEl.value ? inputEl.value + ' ' : '';
-  recognition.onstart = () => { state.listening = true; micBtn.classList.add('listening'); };
-  recognition.onresult = (e) => { let t=''; for(let i=0;i<e.results.length;i++) t += e.results[i][0].transcript; inputEl.value = base + t; };
-  recognition.onerror = (e) => { state.listening = false; micBtn.classList.remove('listening'); if(e.error==='not-allowed'||e.error==='service-not-allowed') showPermHint(); };
-  recognition.onend = () => { state.listening = false; micBtn.classList.remove('listening'); };
-  try{ recognition.start(); }catch(e){ state.listening = false; micBtn.classList.remove('listening'); showPermHint(); }
-}
-function showPermHint(){
-  document.getElementById('permHintHome').style.display = 'block';
-  document.getElementById('permHintChat').style.display = 'block';
-}
-
-/* ===================== anexos ===================== */
-function handleFile(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  const active = state.screen === 'home' ? 'inputHome' : 'inputChat';
-  const el = document.getElementById(active);
-  el.value = (el.value ? el.value + ' ' : '') + `[anexo: ${file.name}]`;
-  e.target.value = '';
-}
-
-/* ===================== init ===================== */
-document.getElementById('greet').textContent = greetingText();
-runPreview();
-// observa troca de tela pra manter o preview atualizado
-const origGoScreen = goScreen;
-goScreen = function(name){ origGoScreen(name); if(name === 'preview') runPreview(); };
-</script>
-</body>
-</html>
-
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -603,210 +10,254 @@ goScreen = function(name){ origGoScreen(name); if(name === 'preview') runPreview
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#171512; --panel:#1e1c19; --panel-2:#252220; --border:#33302b;
-    --ink:#f2ede6; --sub:#9b9186; --accent:#e07a4e;
+    --bg:#12141a; --panel:#181b23; --panel-2:#1f232d; --border:#2a2f3a;
+    --ink:#e9e8e4; --sub:#5c6270; --accent:#e0a458; --accent-alt:#5fa8a0;
   }
-  *{box-sizing:border-box;}
-  html,body{height:100%; margin:0;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow-x:hidden;}
   body{
-    background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    display:flex; overflow:hidden;
+    background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;
+    height:100vh;height:100dvh;width:100%;max-width:100vw;overflow:hidden;
+    padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+    display:flex;
   }
+  button{font-family:inherit;touch-action:manipulation;}
 
+  /* sidebar */
   #sidebar{
-    position:fixed; inset:0 auto 0 0; width:280px; background:var(--panel);
-    border-right:1px solid var(--border); padding:20px 16px;
-    transform:translateX(-100%); transition:transform .25s ease; z-index:20;
-    display:flex; flex-direction:column;
+    position:fixed;inset:0 auto 0 0;width:280px;background:var(--panel);
+    border-right:1px solid var(--border);padding:20px 16px;
+    transform:translateX(-100%);transition:transform .25s ease;z-index:20;
+    display:flex;flex-direction:column;
   }
   #sidebar.open{transform:translateX(0);}
-  #sidebar h1{font-family:Georgia,'Times New Roman',serif; font-size:1.5rem; margin:4px 0 24px;}
-  .nav-item{display:flex; align-items:center; gap:12px; padding:10px 8px; border-radius:10px; color:var(--sub); font-size:.95rem; background:none; border:none; width:100%; text-align:left;}
+  #sidebar h1{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;margin:4px 0 24px;color:var(--ink);}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;color:var(--ink);font-size:.95rem;background:none;border:none;width:100%;text-align:left;}
   .nav-item:active{background:var(--panel-2);}
-  .sidebar-footer{margin-top:auto; display:flex; align-items:center; gap:10px;}
-  .avatar{width:34px; height:34px; border-radius:50%; background:var(--accent); color:#241a05; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem;}
-  .recent-item{width:100%; text-align:left; background:none; border:none; color:#cfc9c0; font-size:.88rem; padding:9px 8px; border-radius:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; justify-content:space-between; align-items:center; gap:6px;}
+  .sidebar-footer{margin-top:auto;display:flex;align-items:center;gap:10px;padding:8px 0;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#1a1305;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;}
+  .recent-item{width:100%;text-align:left;background:none;border:none;color:#9aa0ac;font-size:.88rem;padding:10px 12px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;justify-content:space-between;align-items:center;gap:6px;}
   .recent-item:active{background:var(--panel-2);}
-  .recent-item.active{background:var(--panel-2); color:var(--ink);}
-  .recent-item .del{opacity:.5; flex-shrink:0;}
+  .recent-item.active{background:var(--panel-2);color:var(--ink);}
+  .recent-item .del{opacity:.5;flex-shrink:0;}
 
-  #overlay{position:fixed; inset:0; background:#00000080; opacity:0; pointer-events:none; transition:opacity .25s; z-index:15;}
-  #overlay.show{opacity:1; pointer-events:auto;}
+  #overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .25s;z-index:15;}
+  #overlay.show{opacity:1;pointer-events:auto;}
 
-  main{flex:1; display:flex; flex-direction:column; height:100vh; position:relative;}
-  header{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top,0px));}
-  .icon-btn{width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:var(--sub); background:none; border:none;}
-  .icon-btn svg{width:20px; height:20px;}
+  /* shell & main */
+  .shell{display:flex;flex-direction:column;height:100%;width:100%;position:relative;}
+  .screen{display:none;flex-direction:column;flex:1;min-height:0;width:100%;}
+  .screen.active{display:flex;}
 
-  #chatArea{flex:1; overflow-y:auto; padding:0 20px; display:flex; flex-direction:column;}
-  .splash{margin:auto; text-align:center;}
-  .mark{width:52px; height:52px; margin:0 auto 18px; border-radius:16px; background:linear-gradient(135deg, var(--accent), #f2a35f);}
-  .splash h2{font-family:Georgia,'Times New Roman',serif; font-size:1.7rem; font-weight:400; margin:0;}
-  .splash p{color:var(--sub); font-size:.85rem; margin-top:8px;}
+  /* topbar */
+  .topbar{display:flex;align-items:center;gap:8px;padding:16px 16px 8px;flex-shrink:0;}
+  .ham{font-size:24px;background:none;border:none;color:var(--ink);line-height:1;padding:2px;cursor:pointer;}
+  .mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-alt));flex-shrink:0;animation:markPulse 3s ease-in-out infinite;}
+  @keyframes markPulse{0%,100%{box-shadow:0 0 0 0 rgba(224,164,88,.2)}50%{box-shadow:0 0 0 8px rgba(224,164,88,0)}}
+  .spacer{flex:1;}
+  .mode-label{font-size:13px;color:var(--sub);margin-left:2px;}
+  .pill-btn-flat{font-size:12px;padding:7px 12px;border-radius:20px;background:var(--panel-2);border:1px solid var(--border);color:var(--accent);font-family:inherit;}
 
-  .msg-wrap{margin-bottom:18px; animation: msgIn .25s ease;}
-  @keyframes msgIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
-  .msg{max-width:85%; padding:11px 15px; border-radius:16px; font-size:.93rem; line-height:1.5; white-space:pre-wrap;}
-  .msg.user{align-self:flex-end; background:var(--accent); color:#241a05; border-bottom-right-radius:4px; margin-left:auto;}
-  .msg.ai{align-self:flex-start; background:var(--panel-2); border-bottom-left-radius:4px;}
-  .tag{display:block; font-size:.72rem; color:#c7a68d; margin-bottom:3px;}
-  .actions{display:flex; gap:14px; margin-top:6px; padding-left:4px;}
-  .actions button{background:none; border:none; color:var(--sub); padding:2px; transition:transform .1s;}
-  .actions button:active{transform:scale(.85);}
-  .actions button svg{width:16px; height:16px;}
+  /* home splash */
+  .center{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 24px;}
+  .big-mark{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,var(--accent),var(--accent-alt));}
+  h1.splash-title{font-size:28px;font-weight:600;text-align:center;}
+
+  /* chat msgs */
+  .msgs{flex:1;min-height:0;width:100%;max-width:100%;overflow-y:auto;padding:8px 16px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch;}
+  .bubble{max-width:88%;width:fit-content;font-size:15px;line-height:1.55;word-break:break-word;white-space:pre-wrap;}
+  .bubble.user{align-self:flex-end;background:var(--panel-2);border-radius:16px 16px 4px 16px;padding:11px 15px;}
+  .bubble.ai{align-self:flex-start;}
+  .bubble .tag{font-size:11px;color:var(--sub);margin-bottom:4px;display:block;}
+  .bubble.ai.error{background:#2a1a17;border:1px solid rgba(226,96,79,.4);padding:12px 16px;border-radius:12px;}
+  .bubble.ai.error .err-title{color:#ff8a7a;font-weight:600;display:block;margin-bottom:4px;}
+  .bubble.ai.error .err-line{display:block;margin-top:3px;font-size:13px;color:#cfc9c0;}
+  
+  .actions{display:flex;gap:12px;margin-top:6px;padding-left:4px;}
+  .actions button{background:none;border:none;color:var(--sub);padding:2px;font-size:14px;cursor:pointer;}
   .actions button.active{color:var(--accent);}
-  .disclaimer{color:var(--sub); font-size:.72rem; text-align:center; padding:6px 0 2px;}
-  .typing-dots span{display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--sub); margin-right:3px; animation: dotPulse 1.2s infinite;}
+  .speak-btn{margin-top:6px;width:26px;height:26px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--sub);display:grid;place-items:center;}
+  .speak-btn.speaking{border-color:var(--accent-alt);color:var(--accent-alt);}
+  .retry-btn{margin-top:6px;font-size:12.5px;padding:7px 14px;border-radius:20px;background:var(--panel-2);border:1px solid var(--border);color:var(--accent);cursor:pointer;}
+  .typing-dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--sub);margin-right:3px;animation:dotPulse 1.2s infinite;}
   .typing-dots span:nth-child(2){animation-delay:.2s;}
   .typing-dots span:nth-child(3){animation-delay:.4s;}
-  @keyframes dotPulse{ 0%,60%,100%{opacity:.3; transform:scale(.8);} 30%{opacity:1; transform:scale(1);} }
-  .mark{animation: markPulse 3s ease-in-out infinite;}
-  @keyframes markPulse{ 0%,100%{box-shadow:0 0 0 0 #e07a4e33;} 50%{box-shadow:0 0 0 8px #e07a4e00;} }
-  .attach-preview{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:6px 10px; margin-bottom:8px; font-size:.8rem; color:var(--sub);}
-  .attach-preview img{width:28px; height:28px; object-fit:cover; border-radius:6px;}
-  .attach-preview .rm{margin-left:auto; color:#e2604f;}
+  @keyframes dotPulse{0%,60%,100%{opacity:.3;transform:scale(.8);}30%{opacity:1;transform:scale(1);}}
 
-  #composer{padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));}
-  .input-shell{background:var(--panel-2); border:1px solid var(--border); border-radius:20px; padding:12px 14px;}
-  #textInput{width:100%; background:none; border:none; color:var(--ink); font-size:.95rem; resize:none; outline:none; font-family:inherit; max-height:120px;}
-  #textInput::placeholder{color:var(--sub);}
-  .input-row{display:flex; align-items:center; justify-content:space-between; margin-top:8px;}
-  .pill{display:flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:6px 12px; font-size:.8rem;}
-  #sendBtn{width:38px; height:38px; border-radius:50%; background:var(--accent); border:none; display:flex; align-items:center; justify-content:center; color:#241a05;}
-  #sendBtn svg{width:18px; height:18px;}
+  /* code blocks in chat */
+  .code-block-wrap{margin:10px 0;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:#00000030;}
+  .code-block-head{display:flex;justify-content:space-between;align-items:center;background:#00000040;padding:6px 10px;font-size:11px;color:var(--sub);font-family:monospace;}
+  .run-code-btn{background:var(--accent);color:#1a1305;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;}
+  .code-block{margin:0;padding:12px;color:#cfe8d0;font-family:monospace;font-size:12px;overflow-x:auto;white-space:pre;}
 
-  /* ---- tela de configurações ---- */
-  #settingsScreen{
-    position:fixed; inset:0; background:var(--bg); z-index:30; display:none;
-    flex-direction:column; padding:20px; padding-top:calc(20px + env(safe-area-inset-top,0px));
-    overflow-y:scroll; -webkit-overflow-scrolling:touch; touch-action:pan-y;
-    padding-bottom:calc(60px + env(safe-area-inset-bottom,0px)); height:100vh;
+  /* composer */
+  .composer-wrap{padding:0 16px 16px;flex-shrink:0;}
+  .perm-hint{font-size:11px;color:var(--sub);margin-bottom:8px;text-align:center;}
+  .attach-preview{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:var(--sub);}
+  .attach-preview img{width:28px;height:28px;object-fit:cover;border-radius:6px;}
+  .attach-preview .rm{margin-left:auto;color:#e2604f;cursor:pointer;}
+
+  .composer{border-radius:24px;background:var(--panel);border:1px solid var(--border);padding:12px;}
+  .composer textarea{width:100%;background:none;border:none;outline:none;color:var(--ink);font-family:inherit;font-size:15px;padding:4px 4px 10px;resize:none;max-height:120px;}
+  .composer textarea::placeholder{color:var(--sub);}
+  .row{display:flex;align-items:center;gap:8px;}
+  .pill-btn{height:36px;padding:0 12px;border-radius:20px;background:var(--panel-2);border:1px solid var(--border);color:var(--ink);font-size:12.5px;display:flex;align-items:center;gap:6px;}
+  .round{width:36px;height:36px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border);color:var(--ink);font-size:16px;display:grid;place-items:center;cursor:pointer;}
+  .round.send{background:var(--accent);color:#1a1305;border:none;}
+  .round.send:disabled{opacity:.4;}
+  .round.mic.listening{background:#c96a5a;border-color:#c96a5a;color:#fff;animation:pulse 1.1s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(201,106,90,.5)}70%{box-shadow:0 0 0 8px rgba(201,106,90,0)}100%{box-shadow:0 0 0 0 rgba(201,106,90,0)}}
+  input[type=file]{display:none;}
+
+  /* fullscreen screens (settings, profile, all convos, sandbox) */
+  .fullscreen{
+    position:fixed;inset:0;background:var(--bg);z-index:30;display:none;
+    flex-direction:column;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px));
+    overflow-y:auto;-webkit-overflow-scrolling:touch;height:100vh;
   }
-  #settingsScreen.open{display:flex;}
-  #settingsScreen h2{font-size:1.1rem; margin:10px 0 4px;}
-  #settingsScreen p.hint{color:var(--sub); font-size:.8rem; margin:0 0 20px;}
+  .fullscreen.open{display:flex;}
+  .back-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-shrink:0;}
   .field{margin-bottom:16px;}
-  .field label{display:block; font-size:.8rem; color:var(--sub); margin-bottom:6px;}
-  .field input{width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--ink); border-radius:10px; padding:10px 12px; font-size:.9rem;}
-  .save-btn{background:var(--accent); color:#241a05; border:none; border-radius:10px; padding:12px; font-weight:600; width:100%; margin-top:6px;}
-  .key-card{border:1px solid var(--border); border-radius:12px; padding:12px; background:var(--panel);}
-  .btn-row{display:flex; gap:8px; margin-top:8px;}
-  .mini-btn{flex:1; border:1px solid var(--border); background:none; color:var(--ink); border-radius:8px; padding:9px; font-size:.85rem; font-family:inherit;}
+  .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px;}
+  .field input{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;}
+  .save-btn{background:var(--accent);color:#1a1305;border:none;border-radius:10px;padding:12px;font-weight:600;width:100%;margin-top:6px;cursor:pointer;}
+  .key-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--panel);}
+  .btn-row{display:flex;gap:8px;margin-top:8px;}
+  .mini-btn{flex:1;border:1px solid var(--border);background:none;color:var(--ink);border-radius:8px;padding:9px;font-size:13px;font-family:inherit;cursor:pointer;}
   .mini-btn.danger{color:#e2604f;}
   .mini-btn:active{background:var(--panel-2);}
-  .link-btn{background:none; border:none; color:#e2604f; font-size:.8rem; margin-top:8px; padding:4px 0; font-family:inherit;}
-  .test-result{font-size:.82rem; margin-top:8px; line-height:1.45; word-break:break-word;}
+  .link-btn{background:none;border:none;color:#e2604f;font-size:12px;margin-top:8px;padding:4px 0;font-family:inherit;cursor:pointer;}
+  .test-result{font-size:12px;margin-top:8px;line-height:1.45;word-break:break-word;}
   .test-result.ok{color:#4cc38a;}
   .test-result.err{color:#ff6b5b;}
   .test-result.wait{color:var(--sub);}
-  .msg.ai.error{background:#2a1a17; border:1px solid #e2604f66;}
-  .msg.ai.error .err-title{color:#ff8a7a; font-weight:600; display:block; margin-bottom:4px;}
-  .msg.ai.error .err-line{display:block; margin-top:3px; font-size:.86rem;}
-  .back-row{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
 
-  #lockScreen{
-    position:fixed; inset:0; background:var(--bg); z-index:40; display:none;
-    flex-direction:column; align-items:center; justify-content:center; padding:20px;
-  }
+  /* mode sheet overlay */
+  .sheet{position:absolute;inset-inline:0;bottom:0;background:var(--panel);border-top:1px solid var(--border);border-radius:24px 24px 0 0;transform:translateY(100%);transition:transform .2s;padding-bottom:env(safe-area-inset-bottom,16px);z-index:55;}
+  .overlay.open .sheet{transform:translateY(0);}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 12px;}
+  .sheet-head span{font-size:17px;font-weight:600;}
+  .sheet-head button{background:none;border:none;color:var(--sub);font-size:20px;cursor:pointer;}
+  .sheet-list{padding:0 8px 8px;}
+  .mode-opt{width:100%;display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:12px;background:none;border:none;text-align:left;cursor:pointer;}
+  .mode-opt:active{background:var(--panel-2);}
+  .mode-opt .icon{font-size:20px;}
+  .mode-opt .info{flex:1;min-width:0;}
+  .mode-opt .name{font-size:15px;color:var(--ink);}
+  .mode-opt .name.active{color:var(--accent);font-weight:500;}
+  .mode-opt .desc{font-size:12.5px;color:var(--sub);}
+  .mode-opt .check{color:var(--accent);font-size:17px;}
+
+  /* lock screen */
+  #lockScreen{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
   #lockScreen.open{display:flex;}
-  #lockScreen input{background:var(--panel-2); border:1px solid var(--border); color:var(--ink); border-radius:10px; padding:12px 14px; font-size:1rem; text-align:center; width:220px; margin:16px 0;}
-  #lockScreen p{color:var(--sub); font-size:.85rem;}
-
-  .fullscreen{
-    position:fixed; inset:0; background:var(--bg); z-index:25; display:none;
-    flex-direction:column; padding:20px; padding-top:calc(20px + env(safe-area-inset-top,0px));
-    overflow-y:scroll; -webkit-overflow-scrolling:touch; touch-action:pan-y; height:100vh;
-  }
-  .fullscreen.open{display:flex;}
-
-  .code-block-wrap{margin:10px 0; border-radius:10px; overflow:hidden; border:1px solid #ffffff22;}
-  .code-block-head{
-    display:flex; justify-content:space-between; align-items:center; background:#00000030;
-    padding:6px 10px; font-size:.72rem; color:var(--sub); font-family:monospace;
-  }
-  .run-code-btn{background:var(--accent); color:#241a05; border:none; border-radius:6px; padding:4px 10px; font-size:.72rem; font-weight:600;}
-  .code-block{
-    margin:0; padding:12px; background:#00000030; color:#cfe8d0; font-family:'SFMono-Regular',Consolas,monospace;
-    font-size:.8rem; overflow-x:auto; white-space:pre;
-  }
+  #lockScreen input{background:var(--panel-2);border:1px solid var(--border);color:var(--ink);border-radius:10px;padding:12px 14px;font-size:1rem;text-align:center;width:220px;margin:16px 0;}
+  #lockScreen p{color:var(--sub);font-size:13px;text-align:center;}
 </style>
 </head>
 <body>
 
 <div id="overlay"></div>
+
+<!-- SIDEBAR -->
 <aside id="sidebar">
   <h1>Nexus LP</h1>
   <button class="nav-item" id="newConvoBtn">✚ Nova conversa</button>
   <button class="nav-item" id="openAllConvos">💬 Todas as conversas</button>
   <button class="nav-item" id="openSettings">⚙ Configurações</button>
-  <div style="color:var(--sub); font-size:.78rem; margin:20px 0 8px 8px;">recentes</div>
-  <div id="recentsList" style="overflow-y:auto; flex:1;"></div>
-  <button class="sidebar-footer" id="openProfile" style="background:none; border:none; cursor:pointer;">
+  <div style="color:var(--sub);font-size:12px;margin:20px 0 8px 8px;">recentes</div>
+  <div id="recentsList" style="overflow-y:auto;flex:1;"></div>
+  <button class="sidebar-footer" id="openProfile" style="background:none;border:none;cursor:pointer;width:100%;">
     <div class="avatar" id="profileAvatarBtn">LP</div>
-    <span style="font-size:.85rem; color:var(--sub);" id="profileNameLabel">Laiton</span>
+    <span style="font-size:13px;color:var(--sub);" id="profileNameLabel">Laiton</span>
   </button>
 </aside>
 
-<main>
-  <header>
-    <button class="icon-btn" id="menuBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-    </button>
-    <span style="font-size:.85rem; color:var(--sub);">Nexus LP</span>
-    <span style="width:34px;"></span>
-  </header>
+<div class="shell">
 
-  <div id="chatArea">
-    <div class="splash" id="splash">
+  <!-- HOME SCREEN -->
+  <div class="screen active" id="screen-home">
+    <div class="topbar">
+      <button class="ham" onclick="openSidebar()">☰</button>
+      <div class="spacer"></div>
       <div class="mark"></div>
-      <h2>Nexus LP</h2>
     </div>
-  </div>
-
-  <div id="composer">
-    <div id="attachPreviewWrap"></div>
-    <div class="input-shell">
-      <textarea id="textInput" rows="1" placeholder="Conversa com o Nexus..."></textarea>
-      <div class="input-row">
-        <div class="pill">🧠 Inteligência coletiva</div>
-        <div style="display:flex; align-items:center; gap:4px;">
-          <button class="icon-btn" id="attachBtn" style="color:var(--sub);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-          </button>
-          <input type="file" id="fileInput" accept="image/*,.txt,.md,.csv,.json" style="display:none;">
-          <button class="icon-btn" id="micBtn" style="color:var(--sub);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/></svg>
-          </button>
-          <button id="sendBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          </button>
+    <div class="center">
+      <div class="big-mark"></div>
+      <h1 class="splash-title" id="greet">Nexus LP</h1>
+    </div>
+    <div class="composer-wrap">
+      <div id="attachPreviewWrap"></div>
+      <div class="composer">
+        <textarea id="inputHome" rows="1" placeholder="Converse com o Nexus LP..." onkeydown="onComposerKey(event,'home')"></textarea>
+        <div class="row">
+          <label class="round" style="cursor:pointer;">➕<input type="file" accept="image/*,.txt,.md,.csv,.json,.js,.html,.css" onchange="handleFile(event)"></label>
+          <button class="pill-btn" onclick="openModeSheet()"><span id="modeIconHome">🛠️</span><span id="modeLabelHome" style="color:var(--accent)">Engenheiro</span></button>
+          <div class="spacer"></div>
+          <button class="round mic" id="micBtnHome" onclick="toggleMic('home')">🎙️</button>
+          <button class="round send" onclick="sendMessageHome()">➤</button>
         </div>
       </div>
     </div>
   </div>
-</main>
 
-<!-- tela: todas as conversas -->
+  <!-- CHAT SCREEN -->
+  <div class="screen" id="screen-chat">
+    <div class="topbar">
+      <button class="ham" onclick="openSidebar()">☰</button>
+      <span class="mode-label" id="chatModeLabel">🛠️ Engenheiro</span>
+      <div class="spacer"></div>
+      <button class="pill-btn-flat" onclick="openPreviewMode()">Preview</button>
+    </div>
+    <div class="msgs" id="chatArea"></div>
+    <div class="composer-wrap">
+      <div id="attachPreviewWrapChat"></div>
+      <div class="composer">
+        <textarea id="inputChat" rows="1" placeholder="Digite sua mensagem..." onkeydown="onComposerKey(event,'chat')"></textarea>
+        <div class="row">
+          <label class="round" style="cursor:pointer;">➕<input type="file" accept="image/*,.txt,.md,.csv,.json,.js,.html,.css" onchange="handleFile(event)"></label>
+          <button class="pill-btn" onclick="openModeSheet()"><span id="modeIconChat">🛠️</span><span id="modeLabelChat" style="color:var(--accent)">Engenheiro</span></button>
+          <div class="spacer"></div>
+          <button class="round mic" id="micBtnChat" onclick="toggleMic('chat')">🎙️</button>
+          <button class="round send" id="sendBtnChat" onclick="sendMessageChat()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODE SHEET -->
+<div class="overlay" id="modeOverlay">
+  <div class="backdrop" onclick="closeModeSheet()" style="position:absolute;inset:0;"></div>
+  <div class="sheet" id="modeSheet">
+    <div class="sheet-head"><span>Selecionar motor</span><button onclick="closeModeSheet()">✕</button></div>
+    <div class="sheet-list" id="modeList"></div>
+  </div>
+</div>
+
+<!-- ALL CONVERSATIONS SCREEN -->
 <div id="allConvosScreen" class="fullscreen">
   <div class="back-row">
-    <button class="icon-btn" id="closeAllConvos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <span style="font-size:.9rem;">Todas as conversas</span>
+    <button class="ham" id="closeAllConvos" style="font-size:20px;">←</button>
+    <span style="font-size:15px;font-weight:500;">Todas as conversas</span>
   </div>
   <div class="field"><input type="text" id="searchConvos" placeholder="Buscar conversa..."></div>
   <div id="allConvosList"></div>
 </div>
 
-<!-- tela: perfil -->
+<!-- PROFILE SCREEN -->
 <div id="profileScreen" class="fullscreen">
   <div class="back-row">
-    <button class="icon-btn" id="closeProfile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <span style="font-size:.9rem;">Perfil</span>
+    <button class="ham" id="closeProfile" style="font-size:20px;">←</button>
+    <span style="font-size:15px;font-weight:500;">Perfil</span>
   </div>
-  <div style="text-align:center; margin:20px 0;">
-    <div class="avatar" id="profileAvatarBig" style="width:64px; height:64px; font-size:1.4rem; margin:0 auto;">LP</div>
+  <div style="text-align:center;margin:20px 0;">
+    <div class="avatar" id="profileAvatarBig" style="width:64px;height:64px;font-size:1.4rem;margin:0 auto;">LP</div>
   </div>
   <div class="field">
     <label>Seu nome</label>
@@ -815,14 +266,14 @@ goScreen = function(name){ origGoScreen(name); if(name === 'preview') runPreview
   <button class="save-btn" id="saveProfile">Salvar</button>
 </div>
 
-<!-- tela de configurações, só chega aqui pelo menu -->
-<div id="settingsScreen">
+<!-- SETTINGS SCREEN -->
+<div id="settingsScreen" class="fullscreen">
   <div class="back-row">
-    <button class="icon-btn" id="closeSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <span style="font-size:.9rem;">Configurações</span>
+    <button class="ham" id="closeSettings" style="font-size:20px;">←</button>
+    <span style="font-size:15px;font-weight:500;">Configurações</span>
   </div>
-  <h2>Chaves de API</h2>
-  <p class="hint">Ficam guardadas só neste navegador (localStorage), nunca em nenhum servidor. Qualquer pessoa com acesso físico a este aparelho e a este navegador pode vê-las — não use num dispositivo compartilhado.</p>
+  <h2 style="font-size:1.1rem;margin:10px 0 4px;">Chaves de API</h2>
+  <p style="color:var(--sub);font-size:12px;margin:0 0 16px;">Ficam guardadas só neste navegador (localStorage), nunca em nenhum servidor.</p>
 
   <div class="field key-card">
     <label>Claude (Anthropic API key)</label>
@@ -834,7 +285,7 @@ goScreen = function(name){ origGoScreen(name); if(name === 'preview') runPreview
     <div class="test-result" id="resultClaude"></div>
   </div>
 
-  <div class="field key-card">
+  <div class="field key-card" style="margin-top:14px;">
     <label>Gemini (Google API key)</label>
     <input type="password" id="keyGemini" placeholder="AIza...">
     <div class="btn-row">
@@ -844,50 +295,104 @@ goScreen = function(name){ origGoScreen(name); if(name === 'preview') runPreview
     <div class="test-result" id="resultGemini"></div>
   </div>
 
-  <h2 style="margin-top:22px;">Outros provedores</h2>
-  <p class="hint">Adicione qualquer serviço compatível com o formato "OpenAI Chat Completions" (Mistral, Groq, DeepSeek, xAI/Grok, Together, Perplexity, etc.) — é o padrão que a maioria segue.</p>
+  <h2 style="font-size:1.1rem;margin:22px 0 4px;">Outros provedores</h2>
+  <p style="color:var(--sub);font-size:12px;margin:0 0 16px;">Adicione serviços compatíveis com formato OpenAI (ex: Groq).</p>
   <div id="customProviders"></div>
-  <button class="nav-item" id="addProvider" style="border:1px dashed var(--border); border-radius:10px; justify-content:center; margin-top:6px;">+ Adicionar provedor</button>
+  <button class="nav-item" id="addProvider" style="border:1px dashed var(--border);border-radius:10px;justify-content:center;margin-top:6px;">+ Adicionar provedor</button>
 
   <button class="save-btn" id="saveKeys" style="margin-top:18px;">Salvar</button>
-  <div class="test-result" id="saveResult"></div>
+  <div class="test-result" id="saveResult" style="margin-top:8px;"></div>
 
-  <p class="hint" style="margin-top:14px;">ChatGPT não está disponível nesta versão sem servidor — a OpenAI bloqueia chamadas diretas do navegador, com ou sem chave.</p>
-
-  <h2 style="margin-top:28px;">Backup</h2>
-  <div style="display:flex; gap:8px;">
-    <button class="nav-item" id="exportConfig" style="border:1px solid var(--border); border-radius:8px; justify-content:center;">Exportar configuração</button>
-    <label class="nav-item" style="border:1px solid var(--border); border-radius:8px; justify-content:center; text-align:center; cursor:pointer;">
-      Importar
-      <input type="file" id="importConfig" accept="application/json" style="display:none;">
+  <h2 style="font-size:1.1rem;margin:28px 0 8px;">Backup</h2>
+  <div style="display:flex;gap:8px;">
+    <button class="mini-btn" id="exportConfig">Exportar configuração</button>
+    <label class="mini-btn" style="text-align:center;cursor:pointer;padding-top:10px;">
+      Importar <input type="file" id="importConfig" accept="application/json" style="display:none;">
     </label>
   </div>
-  <p class="hint" style="margin-top:8px;">O arquivo exportado contém suas chaves em texto simples — guarde com o mesmo cuidado que teria com uma senha.</p>
 
-  <h2 style="margin-top:28px;">Trocar senha</h2>
+  <h2 style="font-size:1.1rem;margin:28px 0 8px;">Segurança</h2>
   <div class="field">
-    <input type="password" id="newPasswordField" placeholder="nova senha">
+    <input type="password" id="newPasswordField" placeholder="Nova senha de acesso">
   </div>
-  <button class="save-btn" id="changePassword">Salvar nova senha</button>
+  <button class="save-btn" id="changePassword">Atualizar senha</button>
 
-  <h2 style="margin-top:28px;">Diagnóstico</h2>
-  <p class="hint" id="diagInfo" style="white-space:pre-line;"></p>
+  <h2 style="font-size:1.1rem;margin:28px 0 8px;">Diagnóstico</h2>
+  <p style="color:var(--sub);font-size:12px;white-space:pre-line;" id="diagInfo"></p>
 </div>
 
-<!-- trava por senha (cada instalação define a própria) -->
+<!-- LOCK SCREEN -->
 <div id="lockScreen">
-  <div class="mark" style="width:44px;height:44px;"></div>
-  <p id="lockTitle">Digite a senha pra acessar as configurações</p>
+  <div class="mark" style="width:44px;height:44px;margin-bottom:12px;"></div>
+  <p id="lockTitle">Digite a senha para acessar as configurações</p>
   <input type="password" id="lockInput" placeholder="senha">
   <input type="password" id="lockInputConfirm" placeholder="confirme a senha" style="display:none;">
   <button class="save-btn" id="lockSubmit" style="width:220px;">Entrar</button>
-  <p id="lockError" style="color:#e2604f; display:none;">senha incorreta</p>
+  <p id="lockError" style="color:#e2604f;display:none;margin-top:8px;font-size:12px;">senha incorreta</p>
 </div>
 
 <script>
-const chatArea = document.getElementById('chatArea');
-const input = document.getElementById('textInput');
+/* ===================== CONFIG & MODES ===================== */
+const MODES = [
+  { key:'3d', label:'3D Game', icon:'🎮', desc:'Jogos e cenas 3D com Three.js/WebGL' },
+  { key:'engineer', label:'Engenheiro', icon:'🛠️', desc:'Apps e sites completos, código limpo' },
+  { key:'professional', label:'Profissional', icon:'💼', desc:'Documentos, planos e comunicação' },
+  { key:'partner', label:'Parceiro', icon:'🤝', desc:'Conversa natural, bate-papo amigável' }
+];
+const CODE_MODES = ['3d','engineer'];
 
+let state = {
+  brain: 'engineer',
+  screen: 'home'
+};
+
+function greetingText(){
+  const h = new Date().getHours();
+  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+}
+document.getElementById('greet').textContent = greetingText();
+
+/* ===================== SIDEBAR & NAVIGATION ===================== */
+function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+document.getElementById('overlay').addEventListener('click', closeSidebar);
+
+function goScreen(name){
+  state.screen = name;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  closeSidebar();
+}
+
+/* ===================== MODES SHEET ===================== */
+function openModeSheet(){
+  const list = document.getElementById('modeList');
+  list.innerHTML = MODES.map(m => `
+    <button class="mode-opt" onclick="setBrain('${m.key}')">
+      <span class="icon">${m.icon}</span>
+      <span class="info">
+        <div class="name ${state.brain===m.key?'active':''}">${m.label}</div>
+        <div class="desc">${m.desc}</div>
+      </span>
+      ${state.brain===m.key ? '<span class="check">✓</span>' : ''}
+    </button>
+  `).join('');
+  document.getElementById('modeOverlay').classList.add('open');
+}
+function closeModeSheet(){ document.getElementById('modeOverlay').classList.remove('open'); }
+
+function setBrain(key){
+  state.brain = key;
+  const m = MODES.find(x => x.key === key);
+  document.getElementById('modeIconHome').textContent = m.icon;
+  document.getElementById('modeLabelHome').textContent = m.label;
+  document.getElementById('modeIconChat').textContent = m.icon;
+  document.getElementById('modeLabelChat').textContent = m.label;
+  document.getElementById('chatModeLabel').textContent = m.icon + ' ' + m.label;
+  closeModeSheet();
+}
+
+/* ===================== LOCAL STORAGE & CONVERSATIONS ===================== */
 function getPassword(){ return localStorage.getItem('nexuslp_password') || ''; }
 function hasPassword(){ return !!getPassword(); }
 
@@ -901,18 +406,166 @@ function getCustomProviders(){
   try{ return JSON.parse(localStorage.getItem('nexuslp_custom_providers') || '[]'); }
   catch(e){ return []; }
 }
-function saveCustomProviders(list){
-  localStorage.setItem('nexuslp_custom_providers', JSON.stringify(list));
+function saveCustomProviders(list){ localStorage.setItem('nexuslp_custom_providers', JSON.stringify(list)); }
+
+function loadConversations(){
+  try{ return JSON.parse(localStorage.getItem('nexuslp_conversations') || '[]'); }
+  catch(e){ return []; }
 }
-function escAttr(v){
-  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function saveConversations(list){ localStorage.setItem('nexuslp_conversations', JSON.stringify(list)); }
+
+let currentConversationId = null;
+let currentMessages = [];
+
+function makeTitle(txt){
+  const clean = txt.trim().replace(/\s+/g,' ');
+  return clean.length > 38 ? clean.slice(0,38) + '…' : clean;
 }
 
-function setResult(el, kind, text){
-  if(!el) return;
-  el.className = 'test-result ' + kind;
-  el.textContent = text;
+function persistCurrentConversation(){
+  if(currentMessages.length === 0) return;
+  const list = loadConversations();
+  const firstUser = currentMessages.find(m => m.role === 'user');
+  const title = firstUser ? makeTitle(firstUser.content) : 'Conversa';
+  const idx = list.findIndex(c => c.id === currentConversationId);
+  const record = { id: currentConversationId, title, messages: currentMessages, updatedAt: Date.now() };
+  if(idx >= 0) list[idx] = record; else list.unshift(record);
+  saveConversations(list);
+  renderRecents();
 }
+
+function renderRecents(){
+  const list = loadConversations().sort((a,b) => b.updatedAt - a.updatedAt);
+  const el = document.getElementById('recentsList');
+  el.innerHTML = list.map(c => `
+    <button class="recent-item ${c.id === currentConversationId ? 'active' : ''}" onclick="loadConversationById('${c.id}')">
+      <span>${escapeHtml(c.title)}</span>
+      <span class="del" onclick="event.stopPropagation();deleteConvo('${c.id}')">✕</span>
+    </button>`).join('') || '<div style="color:var(--sub);font-size:12px;padding:8px;">Nenhuma conversa ainda.</div>';
+}
+
+function deleteConvo(id){
+  const list = loadConversations().filter(c => c.id !== id);
+  saveConversations(list);
+  if(id === currentConversationId) startNewConversation();
+  renderRecents();
+}
+
+function loadConversationById(id){
+  const record = loadConversations().find(c => c.id === id);
+  if(!record) return;
+  currentConversationId = record.id;
+  currentMessages = record.messages;
+  const chatArea = document.getElementById('chatArea');
+  chatArea.innerHTML = '';
+  currentMessages.forEach(m => {
+    if(m.role === 'user') addUserBubble(m.content);
+    else addAiBubble(m.content, 'Nexus LP');
+  });
+  goScreen('chat');
+  renderRecents();
+}
+
+function startNewConversation(){
+  currentConversationId = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  currentMessages = [];
+  document.getElementById('chatArea.innerHTML','');
+  document.getElementById('chatArea').innerHTML = '';
+  renderRecents();
+  goScreen('home');
+}
+document.getElementById('newConvoBtn').addEventListener('click', startNewConversation);
+startNewConversation();
+
+/* ===================== PROFILE ===================== */
+function getProfile(){
+  try{ return JSON.parse(localStorage.getItem('nexuslp_profile') || '{}'); }catch(e){ return {}; }
+}
+function applyProfile(){
+  const p = getProfile();
+  const name = p.name || 'Laiton';
+  const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase() || 'LP';
+  document.getElementById('profileAvatarBtn').textContent = initials;
+  document.getElementById('profileAvatarBig').textContent = initials;
+  document.getElementById('profileNameLabel').textContent = name;
+}
+applyProfile();
+
+document.getElementById('openProfile').addEventListener('click', ()=>{
+  closeSidebar();
+  document.getElementById('profileNameInput').value = getProfile().name || '';
+  document.getElementById('profileScreen').classList.add('open');
+});
+document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profileScreen').classList.remove('open'));
+document.getElementById('saveProfile').addEventListener('click', ()=>{
+  const name = document.getElementById('profileNameInput').value.trim();
+  localStorage.setItem('nexuslp_profile', JSON.stringify({ name }));
+  applyProfile();
+  document.getElementById('profileScreen').classList.remove('open');
+});
+
+/* ===================== ALL CONVOS SCREEN ===================== */
+document.getElementById('openAllConvos').addEventListener('click', ()=>{
+  closeSidebar();
+  renderAllConvosList('');
+  document.getElementById('allConvosScreen').classList.add('open');
+});
+document.getElementById('closeAllConvos').addEventListener('click', () => document.getElementById('allConvosScreen').classList.remove('open'));
+
+function renderAllConvosList(query){
+  const list = loadConversations().filter(c => !query || c.title.toLowerCase().includes(query.toLowerCase()));
+  document.getElementById('allConvosList').innerHTML = list.map(c => `
+    <button class="recent-item" style="padding:14px 12px;border-bottom:1px solid var(--border);border-radius:0;" onclick="loadConversationById('${c.id}');document.getElementById('allConvosScreen').classList.remove('open')">
+      <span>${escapeHtml(c.title)}</span>
+      <span class="del" onclick="event.stopPropagation();deleteConvo('${c.id}');renderAllConvosList(document.getElementById('searchConvos').value)">✕</span>
+    </button>`).join('') || '<p style="color:var(--sub);font-size:13px;padding:12px;">Nenhuma conversa encontrada.</p>';
+}
+document.getElementById('searchConvos').addEventListener('input', e => renderAllConvosList(e.target.value));
+
+/* ===================== SETTINGS & LOCK ===================== */
+document.getElementById('openSettings').addEventListener('click', ()=>{
+  closeSidebar();
+  document.getElementById('lockError').style.display = 'none';
+  document.getElementById('lockInput').value = '';
+  document.getElementById('lockInputConfirm').value = '';
+  if(hasPassword()){
+    document.getElementById('lockTitle').textContent = 'Digite a senha para acessar as configurações';
+    document.getElementById('lockInputConfirm').style.display = 'none';
+  } else {
+    document.getElementById('lockTitle').textContent = 'Primeira vez — crie uma senha para proteger as chaves';
+    document.getElementById('lockInputConfirm').style.display = 'block';
+  }
+  document.getElementById('lockScreen').classList.add('open');
+});
+
+document.getElementById('lockSubmit').addEventListener('click', ()=>{
+  const val = document.getElementById('lockInput').value;
+  if(!hasPassword()){
+    const confirm = document.getElementById('lockInputConfirm').value;
+    if(!val || val.length < 4){ alert('A senha precisa ter pelo menos 4 caracteres.'); return; }
+    if(val !== confirm){ alert('As senhas não coincidem.'); return; }
+    localStorage.setItem('nexuslp_password', val);
+    document.getElementById('lockScreen').classList.remove('open');
+    openSettingsScreen();
+    return;
+  }
+  if(val === getPassword()){
+    document.getElementById('lockScreen').classList.remove('open');
+    openSettingsScreen();
+  } else {
+    document.getElementById('lockError').style.display = 'block';
+  }
+});
+
+function openSettingsScreen(){
+  const keys = getKeys();
+  document.getElementById('keyClaude').value = keys.claude;
+  document.getElementById('keyGemini').value = keys.gemini;
+  renderCustomProviders();
+  document.getElementById('diagInfo').textContent = 'Versão do app: v1 (Unificado)\nMicrofone nativo: ' + (window.SpeechRecognition || window.webkitSpeechRecognition ? 'Sim' : 'Não') + '\nSpeechSynthesis: ' + ('speechSynthesis' in window ? 'Sim' : 'Não');
+  document.getElementById('settingsScreen').classList.add('open');
+}
+document.getElementById('closeSettings').addEventListener('click', () => document.getElementById('settingsScreen').classList.remove('open'));
 
 function renderCustomProviders(){
   const list = getCustomProviders();
@@ -932,594 +585,108 @@ function renderCustomProviders(){
         <button class="mini-btn danger" data-clear-custom="${i}">Apagar</button>
       </div>
       <div class="test-result" id="resultCustom${i}"></div>
-      <button class="link-btn" data-remove-provider="${i}">Remover este provedor</button>
-    </div>`).join('') || '<p class="hint">Nenhum provedor extra adicionado ainda.</p>';
+      <button class="link-btn" onclick="removeCustom(${i})">Remover este provedor</button>
+    </div>`).join('') || '<p style="color:var(--sub);font-size:12px;margin-bottom:8px;">Nenhum provedor extra.</p>';
 
-  // guarda automaticamente cada campo a cada letra digitada (não espera perder o foco,
-  // porque no teclado do Android o evento "change" às vezes nunca dispara)
-  el.querySelectorAll('input').forEach(inp=>{
+  el.querySelectorAll('input').forEach(inp => {
     inp.addEventListener('input', ()=>{
       const list = getCustomProviders();
-      if(!list[inp.dataset.i]) return;
-      list[inp.dataset.i][inp.dataset.p] = inp.value.trim();
+      if(list[inp.dataset.i]) list[inp.dataset.i][inp.dataset.p] = inp.value.trim();
       saveCustomProviders(list);
     });
   });
 
-  // testar conexão (usa o que está digitado agora, mesmo sem salvar)
-  el.querySelectorAll('[data-test-custom]').forEach(btn=>{
+  el.querySelectorAll('[data-test-custom]').forEach(btn => {
     btn.addEventListener('click', async ()=>{
       const i = btn.dataset.testCustom;
       const card = el.querySelector(`[data-card="${i}"]`);
       const get = k => card.querySelector(`[data-p="${k}"]`).value.trim();
-      const prov = { name: get('name') || 'provedor', url: get('url'), model: get('model'), key: get('key') };
+      const prov = { name: get('name') || 'Provedor', url: get('url'), model: get('model'), key: get('key') };
       const out = document.getElementById('resultCustom' + i);
-      if(!prov.url || !prov.model || !prov.key){
-        setResult(out, 'err', '❌ Preencha URL, modelo e chave antes de testar.');
-        return;
-      }
-      if(!/^https:\/\//i.test(prov.url)){
-        setResult(out, 'err', '❌ A URL precisa começar com https://');
-        return;
-      }
-      setResult(out, 'wait', 'Testando...');
-      btn.disabled = true;
+      if(!prov.url || !prov.model || !prov.key){ out.className='test-result err'; out.textContent='❌ Preencha URL, modelo e chave.'; return; }
+      out.className='test-result wait'; out.textContent='Testando...';
       try{
-        await askCustomProvider([{ role:'user', content:'Responda apenas com a palavra: ok' }], prov);
-        setResult(out, 'ok', '✅ Conectado com sucesso.');
+        await askCustomProvider([{ role:'user', content:'ok' }], prov);
+        out.className='test-result ok'; out.textContent='✅ Conectado com sucesso.';
       }catch(e){
-        setResult(out, 'err', '❌ ' + e.message);
+        out.className='test-result err'; out.textContent='❌ ' + e.message;
       }
-      btn.disabled = false;
     });
   });
 
-  // apagar só a chave deste provedor
-  el.querySelectorAll('[data-clear-custom]').forEach(btn=>{
+  el.querySelectorAll('[data-clear-custom]').forEach(btn => {
     btn.addEventListener('click', ()=>{
       const i = btn.dataset.clearCustom;
       const list = getCustomProviders();
-      if(list[i]){ list[i].key = ''; saveCustomProviders(list); }
-      const keyInput = el.querySelector(`[data-card="${i}"] [data-p="key"]`);
-      if(keyInput) keyInput.value = '';
-      setResult(document.getElementById('resultCustom' + i), 'wait', 'Chave apagada.');
-    });
-  });
-
-  el.querySelectorAll('[data-remove-provider]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(!confirm('Remover este provedor por completo?')) return;
-      const list = getCustomProviders();
-      list.splice(Number(btn.dataset.removeProvider), 1);
+      if(list[i]) list[i].key = '';
       saveCustomProviders(list);
       renderCustomProviders();
     });
   });
 }
+
+function removeCustom(i){
+  const list = getCustomProviders();
+  list.splice(i, 1);
+  saveCustomProviders(list);
+  renderCustomProviders();
+}
+
 document.getElementById('addProvider').addEventListener('click', ()=>{
   const list = getCustomProviders();
-  list.push({ name:'', url:'', model:'', key:'' });
+  list.push({ name:'Groq', url:'https://api.groq.com/openai/v1/chat/completions', model:'llama-3.3-70b-versatile', key:'' });
   saveCustomProviders(list);
   renderCustomProviders();
 });
 
-// ---- conversas: histórico completo + persistência ----
-function loadConversations(){
-  try{ return JSON.parse(localStorage.getItem('nexuslp_conversations') || '[]'); }
-  catch(e){ return []; }
-}
-function saveConversations(list){
-  localStorage.setItem('nexuslp_conversations', JSON.stringify(list));
-}
+document.getElementById('saveKeys').addEventListener('click', ()=>{
+  localStorage.setItem('nexuslp_claude_key', document.getElementById('keyClaude').value.trim());
+  localStorage.setItem('nexuslp_gemini_key', document.getElementById('keyGemini').value.trim());
+  const res = document.getElementById('saveResult');
+  res.className = 'test-result ok';
+  res.textContent = '✅ Configurações salvas com sucesso.';
+});
 
-let currentConversationId = null;
-let currentMessages = []; // [{role:'user'|'assistant', content:'...'}]
-let lastUserMessage = '';
-
-function makeTitle(firstMessage){
-  const clean = firstMessage.trim().replace(/\s+/g,' ');
-  return clean.length > 42 ? clean.slice(0, 42) + '…' : clean;
-}
-
-function persistCurrentConversation(){
-  if(currentMessages.length === 0) return;
-  const list = loadConversations();
-  const firstUserMsg = currentMessages.find(m => m.role === 'user');
-  const title = firstUserMsg ? makeTitle(firstUserMsg.content) : 'Conversa';
-  const idx = list.findIndex(c => c.id === currentConversationId);
-  const record = { id: currentConversationId, title, messages: currentMessages, updatedAt: Date.now() };
-  if(idx >= 0) list[idx] = record; else list.unshift(record);
-  saveConversations(list);
-  renderRecents();
-}
-
-function renderRecents(){
-  const list = loadConversations().sort((a,b) => b.updatedAt - a.updatedAt);
-  const el = document.getElementById('recentsList');
-  el.innerHTML = list.map(c => `
-    <button class="recent-item ${c.id === currentConversationId ? 'active' : ''}" data-open-convo="${c.id}">
-      <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.title)}</span>
-      <span class="del" data-del-convo="${c.id}">✕</span>
-    </button>`).join('');
-  el.querySelectorAll('[data-open-convo]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      if(e.target.closest('[data-del-convo]')) return;
-      loadConversationById(btn.dataset.openConvo);
-    });
+document.querySelectorAll('[data-test]').forEach(btn => {
+  btn.addEventListener('click', async ()=>{
+    const which = btn.dataset.test;
+    const out = document.getElementById('result' + (which==='claude'?'Claude':'Gemini'));
+    const key = document.getElementById('key' + (which==='claude'?'Claude':'Gemini')).value.trim();
+    if(!key){ out.className='test-result err'; out.textContent='❌ Cole a chave.'; return; }
+    out.className='test-result wait'; out.textContent='Testando...';
+    try{
+      if(which === 'claude') await askClaude([{role:'user',content:'ok'}], key);
+      else await askGemini([{role:'user',content:'ok'}], key);
+      out.className='test-result ok'; out.textContent='✅ Conectado com sucesso.';
+    }catch(e){
+      out.className='test-result err'; out.textContent='❌ ' + e.message;
+    }
   });
-  el.querySelectorAll('[data-del-convo]').forEach(span=>{
-    span.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const list = loadConversations().filter(c => c.id !== span.dataset.delConvo);
-      saveConversations(list);
-      if(span.dataset.delConvo === currentConversationId) startNewConversation();
-      renderRecents();
-    });
+});
+
+document.querySelectorAll('[data-clear]').forEach(btn => {
+  btn.addEventListener('click', ()=>{
+    const which = btn.dataset.clear;
+    document.getElementById('key' + (which==='claude'?'Claude':'Gemini')).value = '';
+    localStorage.removeItem('nexuslp_' + which + '_key');
   });
-}
-
-function loadConversationById(id){
-  const list = loadConversations();
-  const record = list.find(c => c.id === id);
-  if(!record) return;
-  currentConversationId = record.id;
-  currentMessages = record.messages;
-  chatArea.innerHTML = '';
-  currentMessages.forEach(m=>{
-    if(m.role === 'user') addUserBubble(m.content, false);
-    else addAiBubble(m.content, 'Nexus LP', false);
-  });
-  const lastUser = [...currentMessages].reverse().find(m => m.role === 'user');
-  lastUserMessage = lastUser ? lastUser.content : '';
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-  renderRecents();
-}
-
-function startNewConversation(){
-  currentConversationId = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-  currentMessages = [];
-  lastUserMessage = '';
-  chatArea.innerHTML = `<div class="splash" id="splash"><div class="mark"></div><h2>Nexus LP</h2></div>`;
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-  renderRecents();
-}
-document.getElementById('newConvoBtn').addEventListener('click', startNewConversation);
-startNewConversation();
-renderRecents();
-
-// ---- perfil ----
-function getProfile(){
-  try{ return JSON.parse(localStorage.getItem('nexuslp_profile') || '{}'); }
-  catch(e){ return {}; }
-}
-function applyProfile(){
-  const p = getProfile();
-  const name = p.name || 'Laiton';
-  const initials = name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase() || 'LP';
-  document.querySelectorAll('#profileAvatarBtn, #profileAvatarBig').forEach(el => el.textContent = initials);
-  const label = document.getElementById('profileNameLabel');
-  if(label) label.textContent = name;
-}
-applyProfile();
-
-document.getElementById('openProfile').addEventListener('click', ()=>{
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-  document.getElementById('profileNameInput').value = getProfile().name || '';
-  document.getElementById('profileScreen').classList.add('open');
-});
-document.getElementById('closeProfile').addEventListener('click', ()=>{
-  document.getElementById('profileScreen').classList.remove('open');
-});
-document.getElementById('saveProfile').addEventListener('click', ()=>{
-  const name = document.getElementById('profileNameInput').value.trim();
-  localStorage.setItem('nexuslp_profile', JSON.stringify({ name }));
-  applyProfile();
-  document.getElementById('profileScreen').classList.remove('open');
-});
-
-// ---- tela: todas as conversas ----
-function renderAllConvos(filter){
-  const list = loadConversations().sort((a,b)=>b.updatedAt - a.updatedAt)
-    .filter(c => !filter || c.title.toLowerCase().includes(filter.toLowerCase()));
-  const el = document.getElementById('allConvosList');
-  el.innerHTML = list.map(c => `
-    <button class="recent-item" data-open-full="${c.id}" style="padding:14px 10px; border-bottom:1px solid var(--border); border-radius:0;">
-      <span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(c.title)}</span>
-      <span class="del" data-del-full="${c.id}">✕</span>
-    </button>`).join('') || '<p class="hint">Nenhuma conversa ainda.</p>';
-  el.querySelectorAll('[data-open-full]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      if(e.target.closest('[data-del-full]')) return;
-      loadConversationById(btn.dataset.openFull);
-      document.getElementById('allConvosScreen').classList.remove('open');
-    });
-  });
-  el.querySelectorAll('[data-del-full]').forEach(span=>{
-    span.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const list = loadConversations().filter(c => c.id !== span.dataset.delFull);
-      saveConversations(list);
-      if(span.dataset.delFull === currentConversationId) startNewConversation();
-      renderAllConvos(document.getElementById('searchConvos').value);
-      renderRecents();
-    });
-  });
-}
-document.getElementById('openAllConvos').addEventListener('click', ()=>{
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-  renderAllConvos('');
-  document.getElementById('allConvosScreen').classList.add('open');
-});
-document.getElementById('closeAllConvos').addEventListener('click', ()=>{
-  document.getElementById('allConvosScreen').classList.remove('open');
-});
-document.getElementById('searchConvos').addEventListener('input', (e)=>{ renderAllConvos(e.target.value); });
-
-// ---- sidebar ----
-document.getElementById('menuBtn').addEventListener('click', ()=>{
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('overlay').classList.add('show');
-});
-document.getElementById('overlay').addEventListener('click', ()=>{
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-});
-
-// ---- trava: primeira vez cria senha própria, depois só pede pra entrar ----
-document.getElementById('openSettings').addEventListener('click', ()=>{
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-  document.getElementById('lockError').style.display = 'none';
-  document.getElementById('lockInput').value = '';
-  document.getElementById('lockInputConfirm').value = '';
-  if(hasPassword()){
-    document.getElementById('lockTitle').textContent = 'Digite a senha pra acessar as configurações';
-    document.getElementById('lockInputConfirm').style.display = 'none';
-  } else {
-    document.getElementById('lockTitle').textContent = 'Primeira vez aqui — crie uma senha pra proteger as configurações deste aparelho';
-    document.getElementById('lockInputConfirm').style.display = 'block';
-  }
-  document.getElementById('lockScreen').classList.add('open');
-});
-
-function fillDiag(){
-  const yes = v => v ? 'sim' : 'não';
-  const el = document.getElementById('diagInfo');
-  if(!el) return;
-  el.textContent =
-    'Versão do app: v4\n' +
-    'Reconhecimento de voz (microfone): ' + yes(window.SpeechRecognition || window.webkitSpeechRecognition) + '\n' +
-    'Leitura em voz (alto-falante): ' + yes('speechSynthesis' in window && window.SpeechSynthesisUtterance);
-}
-
-function openSettingsScreen(){
-  fillDiag();
-  ['resultClaude','resultGemini','saveResult'].forEach(id => setResult(document.getElementById(id), 'wait', ''));
-  const keys = getKeys();
-  document.getElementById('keyClaude').value = keys.claude;
-  document.getElementById('keyGemini').value = keys.gemini;
-  renderCustomProviders();
-  document.getElementById('settingsScreen').classList.add('open');
-}
-
-document.getElementById('lockSubmit').addEventListener('click', ()=>{
-  const val = document.getElementById('lockInput').value;
-  if(!hasPassword()){
-    const confirm = document.getElementById('lockInputConfirm').value;
-    if(!val || val.length < 4){ document.getElementById('lockError').textContent = 'a senha precisa ter pelo menos 4 caracteres'; document.getElementById('lockError').style.display='block'; return; }
-    if(val !== confirm){ document.getElementById('lockError').textContent = 'as senhas não coincidem'; document.getElementById('lockError').style.display='block'; return; }
-    localStorage.setItem('nexuslp_password', val);
-    document.getElementById('lockScreen').classList.remove('open');
-    openSettingsScreen();
-    return;
-  }
-  if(val === getPassword()){
-    document.getElementById('lockScreen').classList.remove('open');
-    document.getElementById('lockError').style.display = 'none';
-    openSettingsScreen();
-  } else {
-    document.getElementById('lockError').textContent = 'senha incorreta';
-    document.getElementById('lockError').style.display = 'block';
-  }
 });
 
 document.getElementById('changePassword').addEventListener('click', ()=>{
   const val = document.getElementById('newPasswordField').value;
-  if(!val || val.length < 4){ alert('a nova senha precisa ter pelo menos 4 caracteres'); return; }
+  if(!val || val.length < 4){ alert('Mínimo 4 caracteres.'); return; }
   localStorage.setItem('nexuslp_password', val);
   document.getElementById('newPasswordField').value = '';
-  alert('senha atualizada.');
+  alert('Senha atualizada.');
 });
 
-// ---- testar conexão / apagar chave (Claude e Gemini) ----
-document.querySelectorAll('[data-test]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    const which = btn.dataset.test;                       // 'claude' | 'gemini'
-    const cap = which[0].toUpperCase() + which.slice(1);
-    const out = document.getElementById('result' + cap);
-    const key = document.getElementById('key' + cap).value.trim();
-    if(!key){ setResult(out, 'err', '❌ Cole a chave antes de testar.'); return; }
-    setResult(out, 'wait', 'Testando...');
-    btn.disabled = true;
-    try{
-      const probe = [{ role:'user', content:'Responda apenas com a palavra: ok' }];
-      if(which === 'claude') await askClaude(probe, key);
-      else await askGemini(probe, key);
-      setResult(out, 'ok', '✅ Conectado com sucesso.');
-    }catch(e){
-      setResult(out, 'err', '❌ ' + e.message);
-    }
-    btn.disabled = false;
-  });
-});
-document.querySelectorAll('[data-clear]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const which = btn.dataset.clear;
-    const cap = which[0].toUpperCase() + which.slice(1);
-    document.getElementById('key' + cap).value = '';
-    localStorage.removeItem('nexuslp_' + which + '_key');
-    setResult(document.getElementById('result' + cap), 'wait', 'Chave apagada.');
-  });
-});
-// guarda Claude/Gemini automaticamente a cada letra digitada (mesmo motivo acima)
-['Claude','Gemini'].forEach(cap=>{
-  document.getElementById('key' + cap).addEventListener('input', ()=>{
-    const v = document.getElementById('key' + cap).value.trim();
-    localStorage.setItem('nexuslp_' + cap.toLowerCase() + '_key', v);
-  });
-});
-
-// ---- exportar / importar configuração ----
-document.getElementById('exportConfig').addEventListener('click', ()=>{
-  const config = {
-    claude: localStorage.getItem('nexuslp_claude_key') || '',
-    gemini: localStorage.getItem('nexuslp_gemini_key') || '',
-    customProviders: getCustomProviders()
-  };
-  const blob = new Blob([JSON.stringify(config, null, 2)], { type:'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'nexus-lp-config.json'; a.click();
-  URL.revokeObjectURL(url);
-});
-document.getElementById('importConfig').addEventListener('change', (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    try{
-      const config = JSON.parse(reader.result);
-      if(config.claude) localStorage.setItem('nexuslp_claude_key', config.claude);
-      if(config.gemini) localStorage.setItem('nexuslp_gemini_key', config.gemini);
-      if(config.customProviders) saveCustomProviders(config.customProviders);
-      openSettingsScreen();
-      alert('configuração importada.');
-    }catch(err){ alert('arquivo inválido.'); }
-  };
-  reader.readAsText(file);
-});
-
-document.getElementById('closeSettings').addEventListener('click', ()=>{
-  document.getElementById('settingsScreen').classList.remove('open');
-});
-document.getElementById('saveKeys').addEventListener('click', ()=>{
-  localStorage.setItem('nexuslp_claude_key', document.getElementById('keyClaude').value.trim());
-  localStorage.setItem('nexuslp_gemini_key', document.getElementById('keyGemini').value.trim());
-  // lê de novo todos os campos dos provedores extras, direto da tela
-  const list = getCustomProviders();
-  document.querySelectorAll('#customProviders [data-p]').forEach(inp=>{
-    const item = list[inp.dataset.i];
-    if(item) item[inp.dataset.p] = inp.value.trim();
-  });
-  saveCustomProviders(list);
-  const total = (document.getElementById('keyClaude').value.trim() ? 1 : 0)
-              + (document.getElementById('keyGemini').value.trim() ? 1 : 0)
-              + list.filter(p => p.url && p.model && p.key).length;
-  setResult(document.getElementById('saveResult'), 'ok', `✅ Configurações salvas. ${total} IA(s) pronta(s) para uso.`);
-  updateStatusHint();
-});
-
-function updateStatusHint(){
-  // tela inicial fica limpa de propósito — sem dicas de configuração
-}
-updateStatusHint();
-
-// ---- chat ----
-// (chatArea, input, currentMessages e lastUserMessage já declarados no topo do script)
-
-function addUserBubble(text){
-  const splash = document.getElementById('splash');
-  if(splash) splash.remove();
-  const wrap = document.createElement('div');
-  wrap.className = 'msg-wrap';
-  wrap.innerHTML = `<div class="msg user">${escapeHtml(text)}</div>`;
-  chatArea.appendChild(wrap);
-  chatArea.scrollTop = chatArea.scrollHeight;
-}
-
-function formatPlain(s){
-  // texto normal: escapa HTML e aplica **negrito** e `código inline`
-  return escapeHtml(s)
-    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`\n]+)`/g, '<code style="background:#ffffff14;padding:1px 5px;border-radius:4px;">$1</code>');
-}
-
-function renderMessageContent(text){
-  // separa texto normal de blocos ```lang ... ```
-  const parts = text.split(/```(\w*)\n?([\s\S]*?)```/g);
-  // split com grupos captura: [texto, lang, code, texto, lang, code, ...]
-  let html = '';
-  for(let i = 0; i < parts.length; i += 3){
-    const plain = parts[i];
-    if(plain) html += formatPlain(plain);
-    const lang = parts[i+1];
-    const code = parts[i+2];
-    if(code !== undefined){
-      const runnable = /html|javascript|js/i.test(lang || '') || /<html|<!DOCTYPE|<body/i.test(code);
-      const codeId = 'code_' + Math.random().toString(36).slice(2,9);
-      html += `<div class="code-block-wrap">
-        <div class="code-block-head">${lang ? escapeHtml(lang) : 'código'}${runnable ? `<button class="run-code-btn" data-run="${codeId}">▶ Executar</button>` : ''}</div>
-        <pre class="code-block" id="${codeId}">${escapeHtml(code)}</pre>
-      </div>`;
-    }
-  }
-  return html || formatPlain(text);
-}
-
-function openCodeSandbox(code, lang){
-  const isFullHtml = /<html|<!DOCTYPE/i.test(code);
-  const srcdoc = isFullHtml ? code : `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:sans-serif;margin:12px;}</style></head><body>${/^\s*</.test(code) ? code : `<script>${code}<\/script>`}</body></html>`;
-  const overlay = document.createElement('div');
-  overlay.className = 'fullscreen open';
-  overlay.style.padding = '0';
-  overlay.innerHTML = `
-    <div class="back-row" style="padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top,0px));">
-      <button class="icon-btn" id="closeSandbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-      <span style="font-size:.9rem;">Executando código</span>
-    </div>
-    <iframe id="sandboxFrame" style="flex:1; border:none; background:#fff;" sandbox="allow-scripts allow-forms allow-modals"></iframe>`;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#sandboxFrame').srcdoc = srcdoc;
-  overlay.querySelector('#closeSandbox').addEventListener('click', ()=>{ overlay.remove(); });
-}
-
-function addAiBubble(text, answeredBy){
-  const wrap = document.createElement('div');
-  wrap.className = 'msg-wrap';
-  const isPending = !text; // vazio = bolha de "pensando", ainda sem resposta de verdade
-  wrap.innerHTML = `
-    <div class="msg ai"><span class="tag">${answeredBy || 'Nexus LP'}</span>${renderMessageContent(text)}</div>${isPending ? '' : `
-    <div class="actions">
-      <button data-like title="gostei">👍</button>
-      <button data-dislike title="não gostei">👎</button>
-      <button data-copy title="copiar">📋</button>
-      <button data-regen title="regenerar">🔄</button>
-      <button data-speak title="ouvir">🔊</button>
-    </div>
-    <div class="disclaimer">Nexus LP é IA e pode cometer erros.</div>`}`;
-  chatArea.appendChild(wrap);
-  chatArea.scrollTop = chatArea.scrollHeight;
-  if(isPending) return wrap; // sem botões pra ligar ainda
-
-  wrap.querySelectorAll('[data-run]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const codeEl = wrap.querySelector('#' + btn.dataset.run);
-      if(codeEl) openCodeSandbox(codeEl.textContent);
-    });
-  });
-
-  wrap.querySelector('[data-copy]').addEventListener('click', ()=>{
-    navigator.clipboard?.writeText(text);
-  });
-  wrap.querySelector('[data-like]').addEventListener('click', function(){ this.classList.toggle('active'); });
-  wrap.querySelector('[data-dislike]').addEventListener('click', function(){ this.classList.toggle('active'); });
-  wrap.querySelector('[data-regen]').addEventListener('click', ()=>{
-    // acha a posição real desta bolha na conversa, contando as mensagens antes dela na tela
-    // (não usa sempre "a última mensagem", porque isso bagunçava conversas antigas reabertas)
-    const siblings = Array.from(chatArea.children).filter(w => w.classList && w.classList.contains('msg-wrap') && !w.classList.contains('error-wrap'));
-    const idx = siblings.indexOf(wrap);
-    if(idx === -1) return;
-    currentMessages = currentMessages.slice(0, idx);
-    for(let i = siblings.length - 1; i >= idx; i--){ siblings[i].remove(); }
-    persistCurrentConversation();
-    runQuery();
-  });
-  wrap.querySelector('[data-speak]').addEventListener('click', function(){
-    speakNative(text, this);
-  });
-  return wrap;
-}
-
-// ---- leitura em voz alta: SOMENTE a voz nativa do sistema/navegador (gratuita e sem limite) ----
-function cleanForSpeech(t){
-  return t
-    .replace(/```[\s\S]*?```/g, ' (trecho de código) ')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/[`*_#>]/g, '')
-    .trim();
-}
-
-// divide em trechos curtos (o Chrome corta falas muito longas no meio)
-function splitForSpeech(t){
-  const sentences = t.match(/[^.!?\n]+[.!?]*\s*/g) || [t];
-  const out = [];
-  let cur = '';
-  for(const sen of sentences){
-    if(cur && (cur + sen).length > 220){ out.push(cur.trim()); cur = sen; }
-    else cur += sen;
-  }
-  if(cur.trim()) out.push(cur.trim());
-  return out;
-}
-
-function speakNative(text, btn){
-  const synth = window.speechSynthesis;
-  if(!synth || !window.SpeechSynthesisUtterance){
-    alert('Este aparelho/app não tem leitura em voz do sistema. Abra o Nexus LP no Chrome pra ouvir as respostas.');
-    return;
-  }
-  // tocar de novo enquanto fala = parar
-  if(synth.speaking || synth.pending){
-    synth.cancel();
-    btn.textContent = '🔊';
-    return;
-  }
-  const chunks = splitForSpeech(cleanForSpeech(text));
-  if(!chunks.length) return;
-  const voices = synth.getVoices ? synth.getVoices() : [];
-  const voice = voices.find(v => /^pt[-_]BR/i.test(v.lang)) || voices.find(v => /^pt/i.test(v.lang)) || null;
-  let remaining = chunks.length;
-  chunks.forEach(chunk => {
-    const u = new SpeechSynthesisUtterance(chunk);
-    u.lang = 'pt-BR';
-    if(voice) u.voice = voice;
-    u.onstart = () => { btn.textContent = '⏸'; };
-    u.onend = () => { remaining--; if(remaining <= 0) btn.textContent = '🔊'; };
-    u.onerror = () => { btn.textContent = '🔊'; };
-    synth.speak(u);
-  });
-}
-
-function escapeHtml(s){
-  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
-}
-
+/* ===================== API & ORCHESTRATION ===================== */
 const NEXUS_SYSTEM_PROMPT = [
-  'Você é o Nexus LP, um assistente de IA. Dentro do Nexus LP você faz parte de uma equipe: várias inteligências trabalham juntas, e você já não é um modelo isolado — você é o Nexus LP.',
-  'O Nexus LP foi idealizado e criado por Laiton Flugêncio Mondlane. Quando perguntarem quem criou você ou o Nexus LP, responda que foi o Laiton Flugêncio Mondlane. Fale dele com respeito e orgulho sinceros: ele tem apenas 15 anos e conseguiu idealizar e construir um aplicativo de IA completo, algo que muita gente mais velha não consegue.',
-  'Quando perguntarem quem você é ou o que você é, responda que é o Nexus LP e não cite nomes de modelos, empresas ou provedores de tecnologia por trás. Isso não significa negar que você é uma IA: se perguntarem com sinceridade se você é uma pessoa ou uma IA, diga que é uma IA.',
-  'Fora isso, responda normalmente, no idioma do usuário, com toda a sua capacidade.'
+  'Você é o Nexus LP, um assistente de IA avançado.',
+  'O Nexus LP foi idealizado e criado por Laiton Flugêncio Mondlane. Quando perguntarem quem criou você ou o Nexus LP, responda que foi o Laiton Flugêncio Mondlane. Fale dele com orgulho: ele tem apenas 15 anos e construiu um aplicativo incrível.',
+  'Responda sempre em português, com precisão, clareza e alta performance.'
 ].join(' ');
 
-// ================= camada de API: requisição, erros e extração de texto =================
-
-function friendlyHttpError(status, providerMsg){
-  const detail = providerMsg ? ' Detalhe: ' + providerMsg : '';
-  if(status === 400) return `Pedido recusado (400).${detail}`;
-  if(status === 401) return `Chave inválida ou não autorizada (401).${detail}`;
-  if(status === 403) return `Acesso negado (403): a chave não tem permissão, ou a conta/região está bloqueada.${detail}`;
-  if(status === 404) return `Modelo ou endereço não encontrado (404): confira o nome do modelo e a URL.${detail}`;
-  if(status === 408) return `Tempo esgotado no servidor (408).${detail}`;
-  if(status === 413) return `Conteúdo grande demais para enviar (413).${detail}`;
-  if(status === 429) return `Limite de uso ou cota esgotada (429): aguarde um pouco ou confira créditos/plano.${detail}`;
-  if(status >= 500) return `Servidor da IA indisponível (${status}): tente de novo em instantes.${detail}`;
-  return `Erro ${status}.${detail}`;
-}
-
-function extractProviderError(d){
-  if(!d) return '';
-  const e = d.error;
-  if(typeof e === 'string') return e;
-  if(e && typeof e.message === 'string') return e.message;
-  if(typeof d.message === 'string') return d.message;
-  return '';
-}
-
-// faz a chamada, com limite de tempo, e devolve o JSON já convertido; qualquer falha vira um Error com texto claro
 async function apiRequest(url, options, timeoutMs = 60000){
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -1528,124 +695,47 @@ async function apiRequest(url, options, timeoutMs = 60000){
     res = await fetch(url, { ...options, signal: ctrl.signal });
     raw = await res.text();
   }catch(e){
-    if(e && e.name === 'AbortError') throw new Error('Tempo esgotado: a IA demorou demais para responder.');
-    throw new Error('Sem conexão com a internet, ou o acesso foi bloqueado pelo navegador/app.');
+    throw new Error('Falha de conexão com a rede ou bloqueio CORS.');
   }finally{
     clearTimeout(timer);
   }
   let data = null;
   try{ data = raw ? JSON.parse(raw) : null; }catch(e){ data = null; }
   if(!res.ok){
-    let msg = extractProviderError(data);
-    if(!msg && raw && raw.length < 200 && !raw.trim().startsWith('<')) msg = raw.trim();
-    throw new Error(friendlyHttpError(res.status, (msg || '').slice(0, 300)));
+    let msg = (data && (data.error?.message || data.message)) || raw;
+    throw new Error(`Erro ${res.status}:${(msg||'').slice(0,200)}`);
   }
-  if(data === null) throw new Error('Resposta inválida do servidor (não veio em formato JSON).');
   return data;
 }
 
-function extractClaudeText(data){
-  const txt = (data.content || [])
-    .filter(b => b && b.type === 'text' && b.text)
-    .map(b => b.text).join('\n').trim();
-  if(txt) return txt;
-  if(data.stop_reason === 'refusal') throw new Error('A IA recusou responder a esse conteúdo.');
-  throw new Error('A IA respondeu vazio.');
-}
-
-function extractGeminiText(data){
-  if(data.promptFeedback && data.promptFeedback.blockReason){
-    throw new Error('Pedido bloqueado pelo filtro de segurança (' + data.promptFeedback.blockReason + ').');
-  }
-  const cand = data.candidates && data.candidates[0];
-  const parts = (cand && cand.content && cand.content.parts) || [];
-  const txt = parts.filter(p => p && p.text && !p.thought).map(p => p.text).join('\n').trim();
-  if(txt) return txt;
-  const fr = cand && cand.finishReason;
-  if(fr === 'SAFETY' || fr === 'PROHIBITED_CONTENT' || fr === 'BLOCKLIST' || fr === 'SPII'){
-    throw new Error('Resposta bloqueada pelo filtro de segurança (' + fr + ').');
-  }
-  if(fr === 'MAX_TOKENS') throw new Error('A IA atingiu o limite de tamanho sem produzir texto.');
-  throw new Error('A IA respondeu vazio' + (fr ? ' (motivo: ' + fr + ')' : '') + '.');
-}
-
-function extractOpenAiText(data){
-  const msg = data.choices && data.choices[0] && data.choices[0].message;
-  let c = msg && msg.content;
-  if(Array.isArray(c)) c = c.map(x => (typeof x === 'string' ? x : (x && x.text) || '')).join('\n');
-  c = (c || '').trim();
-  if(c) return c;
-  throw new Error('A IA respondeu vazio.');
-}
-
-// limpa o histórico antes de enviar: sem mensagens vazias, sem duas seguidas do mesmo autor, começando por "user"
-function normalizeMessages(messages){
-  const out = [];
-  for(const m of messages){
-    if(!m || (!m.content && !m.image)) continue;
-    const last = out[out.length - 1];
-    if(last && last.role === m.role && !last.image && !m.image){
-      last.content += '\n\n' + m.content;
-    }else{
-      out.push({ ...m });
-    }
-  }
-  while(out.length && out[0].role !== 'user') out.shift();
-  return out;
-}
-
 async function askClaude(messages, key){
-  const apiMessages = normalizeMessages(messages).map(m => {
-    if(m.image){
-      return { role: m.role, content: [
-        { type:'text', text: m.content || '(imagem)' },
-        { type:'image', source:{ type:'base64', media_type: m.image.mediaType, data: m.image.base64 } }
-      ]};
-    }
-    return { role: m.role, content: m.content };
-  });
   const data = await apiRequest('https://api.anthropic.com/v1/messages', {
     method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': key,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:4096, system: NEXUS_SYSTEM_PROMPT, messages: apiMessages })
+    headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:4096, system: NEXUS_SYSTEM_PROMPT, messages })
   });
-  return extractClaudeText(data);
+  return data.content?.[0]?.text || '';
 }
 
 async function askGemini(messages, key){
-  const contents = normalizeMessages(messages).map(m => {
-    const parts = [{ text: m.content || '(imagem)' }];
-    if(m.image) parts.push({ inline_data: { mime_type: m.image.mediaType, data: m.image.base64 } });
-    return { role: m.role === 'assistant' ? 'model' : 'user', parts };
-  });
-  const data = await apiRequest(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(key)}`, {
+  const contents = messages.map(m => ({ role: m.role==='assistant'?'model':'user', parts:[{ text: m.content }] }));
+  const data = await apiRequest(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
     method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ contents, systemInstruction: { parts:[{ text: NEXUS_SYSTEM_PROMPT }] } })
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ contents, systemInstruction:{ parts:[{ text: NEXUS_SYSTEM_PROMPT }] } })
   });
-  return extractGeminiText(data);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 async function askCustomProvider(messages, provider){
-  // formato "OpenAI Chat Completions": envia só texto
-  const apiMessages = [
-    { role:'system', content: NEXUS_SYSTEM_PROMPT },
-    ...normalizeMessages(messages).map(m => ({ role: m.role, content: m.content || '(imagem)' }))
-  ];
+  const apiMessages = [{ role:'system', content: NEXUS_SYSTEM_PROMPT }, ...messages];
   const data = await apiRequest(provider.url, {
     method:'POST',
-    headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${provider.key}` },
+    headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${provider.key}` },
     body: JSON.stringify({ model: provider.model, messages: apiMessages })
   });
-  return extractOpenAiText(data);
+  return data.choices?.[0]?.message?.content || '';
 }
-
-// ================= orquestração: todas as IAs em paralelo + síntese =================
 
 function getActiveProviders(){
   const keys = getKeys();
@@ -1653,279 +743,205 @@ function getActiveProviders(){
   if(keys.claude) list.push({ name:'Claude', fn: msgs => askClaude(msgs, keys.claude) });
   if(keys.gemini) list.push({ name:'Gemini', fn: msgs => askGemini(msgs, keys.gemini) });
   getCustomProviders().filter(p => p.url && p.key && p.model).forEach(p => {
-    list.push({ name: p.name || 'Provedor extra', fn: msgs => askCustomProvider(msgs, p) });
+    list.push({ name: p.name || 'Provedor', fn: msgs => askCustomProvider(msgs, p) });
   });
   return list;
 }
 
-// aviso de erro na conversa (fica no lugar da resposta, com botão de tentar de novo)
-function buildErrorHtml(title, lines){
-  return '<span class="tag">Nexus LP</span>' +
-    `<span class="err-title">${escapeHtml(title)}</span>` +
-    (lines || []).map(l => `<span class="err-line">${escapeHtml(l)}</span>`).join('');
+/* ===================== CHAT RENDERING & SANDBOX ===================== */
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function formatPlain(s){
+  return escapeHtml(s)
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`\n]+)`/g, '<code style="background:#ffffff14;padding:1px 5px;border-radius:4px;">$1</code>');
 }
 
-function addErrorBubble(html){
+function renderMessageContent(text){
+  const parts = text.split(/```(\w*)\n?([\s\S]*?)```/g);
+  let html = '';
+  for(let i = 0; i < parts.length; i += 3){
+    if(parts[i]) html += formatPlain(parts[i]);
+    const lang = parts[i+1];
+    const code = parts[i+2];
+    if(code !== undefined){
+      const runnable = /html|javascript|js/i.test(lang||'') || /<html|<!DOCTYPE|<body/i.test(code);
+      const codeId = 'code_' + Math.random().toString(36).slice(2,9);
+      html += `<div class="code-block-wrap">
+        <div class="code-block-head">${lang ? escapeHtml(lang) : 'código'}${runnable ? `<button class="run-code-btn" onclick="openCodeSandbox(document.getElementById('${codeId}').textContent)">▶ Executar</button>` : ''}</div>
+        <pre class="code-block" id="${codeId}">${escapeHtml(code)}</pre>
+      </div>`;
+    }
+  }
+  return html || formatPlain(text);
+}
+
+function openCodeSandbox(code){
+  const isFullHtml = /<html|<!DOCTYPE/i.test(code);
+  const srcdoc = isFullHtml ? code : `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${code}</body></html>`;
+  const overlay = document.createElement('div');
+  overlay.className = 'fullscreen open';
+  overlay.style.padding = '0';
+  overlay.innerHTML = `
+    <div class="back-row" style="padding:14px;background:var(--panel);">
+      <button class="ham" onclick="this.closest('.fullscreen').remove()" style="font-size:20px;">←</button>
+      <span style="font-size:14px;font-weight:500;">Preview Executável</span>
+    </div>
+    <iframe style="flex:1;border:none;background:#fff;" sandbox="allow-scripts allow-forms allow-modals"></iframe>`;
+  overlay.querySelector('iframe').srcdoc = srcdoc;
+  document.body.appendChild(overlay);
+}
+
+function addUserBubble(text){
+  const chatArea = document.getElementById('chatArea');
   const wrap = document.createElement('div');
-  wrap.className = 'msg-wrap error-wrap';
-  wrap.innerHTML = `
-    <div class="msg ai error">${html}</div>
-    <div class="actions"><button data-retry title="tentar de novo">🔄 Tentar de novo</button></div>`;
+  wrap.className = 'msg-wrap';
+  wrap.innerHTML = `<div class="bubble user">${escapeHtml(text)}</div>`;
   chatArea.appendChild(wrap);
   chatArea.scrollTop = chatArea.scrollHeight;
-  wrap.querySelector('[data-retry]').addEventListener('click', () => runQuery(wrap));
+}
+
+function addAiBubble(text, answeredBy){
+  const chatArea = document.getElementById('chatArea');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap';
+  const isPending = !text;
+  wrap.innerHTML = `
+    <div class="bubble ai"><span class="tag">${answeredBy || 'Nexus LP'}</span>${renderMessageContent(text)}</div>${isPending ? '' : `
+    <div class="actions">
+      <button onclick="navigator.clipboard?.writeText(this.closest('.msg-wrap').querySelector('.bubble').innerText)">📋 Copiar</button>
+      <button onclick="speakNative(this.closest('.msg-wrap').querySelector('.bubble').innerText, this)">🔊 Ouvir</button>
+    </div>`}`;
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
   return wrap;
 }
 
-async function runQuery(existingWrap){
-  // tentar de novo a partir de um aviso de erro: remove o aviso e começa do zero
-  if(existingWrap && existingWrap.classList.contains('error-wrap')){
-    existingWrap.remove();
-    existingWrap = null;
-  }
-
-  const convoId = currentConversationId;
-  const providers = getActiveProviders();
-
-  // mostra o "pensando"
-  const thinkingHtml = '<span class="tag">Nexus LP</span><span class="typing-dots"><span></span><span></span><span></span></span>';
-  const target = existingWrap ? existingWrap.querySelector('.msg.ai') : null;
-  let thinkingWrap = null;
-  if(target){
-    target.classList.remove('error');
-    target.innerHTML = thinkingHtml;
-  }else{
-    thinkingWrap = addAiBubble('', 'Nexus LP');
-    thinkingWrap.querySelector('.msg.ai').innerHTML = thinkingHtml;
-  }
-
-  // troca o "pensando" por um aviso de erro claro
-  const showError = (title, lines) => {
-    const html = buildErrorHtml(title, lines);
-    if(target){
-      target.classList.add('error');
-      target.innerHTML = html;
-    }else{
-      if(thinkingWrap) thinkingWrap.remove();
-      if(convoId === currentConversationId) addErrorBubble(html);
-    }
-  };
-
-  sendBtn.disabled = true;
-  try{
-    if(providers.length === 0){
-      showError('Nenhuma IA está configurada ainda.', ['Abra o menu → Configurações, cole uma chave de API, toque em Testar conexão e depois em Salvar.']);
-      return;
-    }
-
-    // ---- 1. dispara para todas as IAs ativas em paralelo ----
-    const history = currentMessages.slice();
-    const settled = await Promise.allSettled(providers.map(p => p.fn(history)));
-    const succeeded = [], failures = [];
-    settled.forEach((r, i) => {
-      if(r.status === 'fulfilled' && r.value && r.value.trim()) succeeded.push({ name: providers[i].name, value: r.value.trim() });
-      else failures.push({ name: providers[i].name, message: r.status === 'rejected' ? (r.reason && r.reason.message) || 'erro desconhecido' : 'A IA respondeu vazio.' });
-    });
-
-    // ---- 2. se todas falharam, explica o motivo de cada uma ----
-    if(succeeded.length === 0){
-      showError('Não consegui responder agora.', failures.map(f => `${f.name}: ${f.message}`));
-      return;
-    }
-
-    // ---- 3. uma só respondeu: usa direto; várias: funde numa resposta única ----
-    let finalAnswer = succeeded[0].value;
-    if(succeeded.length > 1){
-      const lastUser = [...history].reverse().find(m => m.role === 'user');
-      const synthesisPrompt =
-        'Você recebeu várias respostas para a mesma pergunta do usuário. Combine-as numa única resposta final, ' +
-        'clara e direta, no idioma do usuário. Não mencione que existem várias fontes, não repita informação, ' +
-        'mantenha blocos de código completos e corrija eventuais contradições.\n\n' +
-        `Pergunta do usuário:\n${lastUser ? lastUser.content : ''}\n\n` +
-        succeeded.map((x, i) => `Resposta ${i + 1}:\n${x.value}`).join('\n\n');
-      const synthesizer = providers.find(p => succeeded.some(x => x.name === p.name));
-      try{
-        const merged = await synthesizer.fn([{ role:'user', content: synthesisPrompt }]);
-        if(merged && merged.trim()) finalAnswer = merged.trim();
-      }catch(e){ /* a síntese falhou: fica com a primeira resposta que chegou */ }
-    }
-
-    // ---- 4. mostra e guarda ----
-    if(convoId !== currentConversationId){
-      // o usuário trocou de conversa enquanto esperava: grava a resposta na conversa de origem
-      const list = loadConversations();
-      const rec = list.find(c => c.id === convoId);
-      if(rec){
-        rec.messages.push({ role:'assistant', content: finalAnswer });
-        rec.updatedAt = Date.now();
-        saveConversations(list);
-        renderRecents();
-      }
-      return;
-    }
-    currentMessages.push({ role:'assistant', content: finalAnswer });
-    if(target){
-      target.classList.remove('error');
-      target.innerHTML = `<span class="tag">Nexus LP</span>${renderMessageContent(finalAnswer)}`;
-    }else{
-      if(thinkingWrap) thinkingWrap.remove();
-      addAiBubble(finalAnswer, 'Nexus LP');
-    }
-    persistCurrentConversation();
-  }catch(e){
-    // qualquer erro inesperado também vira aviso na tela, nunca fica preso no "pensando"
-    showError('Algo deu errado.', [(e && e.message) || 'erro desconhecido']);
-  }finally{
-    sendBtn.disabled = false;
-  }
+function addErrorBubble(title, lines){
+  const chatArea = document.getElementById('chatArea');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap';
+  wrap.innerHTML = `
+    <div class="bubble ai error">
+      <span class="tag">Nexus LP</span>
+      <span class="err-title">${escapeHtml(title)}</span>
+      ${lines.map(l => `<span class="err-line">${escapeHtml(l)}</span>`).join('')}
+    </div>
+    <button class="retry-btn" onclick="runQuery()">🔄 Tentar de novo</button>`;
+  chatArea.appendChild(wrap);
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-// ---- anexar arquivo (imagem ou texto) ----
-let pendingAttachment = null; // { kind:'image', mediaType, base64, name } | { kind:'text', name, content }
-
-document.getElementById('attachBtn').addEventListener('click', ()=>{
-  document.getElementById('fileInput').click();
-});
-document.getElementById('fileInput').addEventListener('change', (e)=>{
+let pendingAttachment = null;
+function handleFile(e){
   const file = e.target.files[0];
   if(!file) return;
-  if(file.size > 8 * 1024 * 1024){ alert('Arquivo muito grande (máx 8MB).'); return; }
-
-  if(file.type.startsWith('image/')){
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      const base64 = reader.result.split(',')[1];
-      pendingAttachment = { kind:'image', mediaType: file.type, base64, name: file.name };
-      renderAttachPreview();
-    };
-    reader.readAsDataURL(file);
-  } else {
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      pendingAttachment = { kind:'text', name: file.name, content: reader.result };
-      renderAttachPreview();
-    };
-    reader.readAsText(file);
-  }
-  e.target.value = '';
-});
-function renderAttachPreview(){
-  const wrap = document.getElementById('attachPreviewWrap');
-  if(!pendingAttachment){ wrap.innerHTML = ''; return; }
-  const icon = pendingAttachment.kind === 'image'
-    ? `<img src="data:${pendingAttachment.mediaType};base64,${pendingAttachment.base64}">`
-    : '📄';
-  wrap.innerHTML = `<div class="attach-preview">${icon}<span>${escapeHtml(pendingAttachment.name)}</span><span class="rm" id="rmAttach">remover</span></div>`;
-  document.getElementById('rmAttach').addEventListener('click', ()=>{ pendingAttachment = null; renderAttachPreview(); });
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    pendingAttachment = { name: file.name, content: reader.result };
+    document.getElementById('attachPreviewWrap').innerHTML = `<div class="attach-preview">📄 <span>${escapeHtml(file.name)}</span><span class="rm" onclick="pendingAttachment=null;this.parentElement.remove()">remover</span></div>`;
+    document.getElementById('attachPreviewWrapChat').innerHTML = document.getElementById('attachPreviewWrap').innerHTML;
+  };
+  reader.readAsText(file);
 }
 
-async function send(){
-  const text = input.value.trim();
+async function processAndSend(textInputId){
+  const inputEl = document.getElementById(textInputId);
+  let text = inputEl.value.trim();
   if(!text && !pendingAttachment) return;
-  input.value = '';
-  input.style.height = 'auto';
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
 
-  let finalText = text;
-  let imagePayload = null;
   if(pendingAttachment){
-    if(pendingAttachment.kind === 'text'){
-      finalText = `${text ? text + '\n\n' : ''}Arquivo anexado (${pendingAttachment.name}):\n${pendingAttachment.content}`;
-    } else {
-      imagePayload = { mediaType: pendingAttachment.mediaType, base64: pendingAttachment.base64 };
-      finalText = text || '(imagem anexada)';
-    }
+    text = `${text ? text + '\n\n' : ''}Arquivo (${pendingAttachment.name}):\n${pendingAttachment.content}`;
+    pendingAttachment = null;
+    document.getElementById('attachPreviewWrap').innerHTML = '';
+    document.getElementById('attachPreviewWrapChat').innerHTML = '';
   }
-  const msg = { role:'user', content: finalText };
-  if(imagePayload) msg.image = imagePayload;
 
-  lastUserMessage = finalText;
-  currentMessages.push(msg);
-  addUserBubble(finalText + (imagePayload ? ' 📎' : ''));
-  pendingAttachment = null;
-  renderAttachPreview();
+  if(state.screen === 'home') goScreen('chat');
+
+  currentMessages.push({ role:'user', content: text });
+  addUserBubble(text);
   persistCurrentConversation();
   await runQuery();
 }
 
-const sendBtn = document.getElementById('sendBtn');
-sendBtn.addEventListener('click', send);
-input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
-input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height = Math.min(input.scrollHeight,120)+'px'; });
+function sendMessageHome(){ processAndSend('inputHome'); }
+function sendMessageChat(){ processAndSend('inputChat'); }
+function onComposerKey(e, from){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); processAndSend(from === 'home' ? 'inputHome' : 'inputChat'); } }
 
-// ---- microfone: SOMENTE o reconhecimento de voz nativo (sem chamar nenhuma API de IA) ----
-const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-const micBtn = document.getElementById('micBtn');
-const defaultPlaceholder = input.placeholder;
-let recognition = null, listening = false, nativeStarted = false, nativeGotResult = false, micHandled = false, micWatchdog = null;
+async function runQuery(){
+  const chatArea = document.getElementById('chatArea');
+  const providers = getActiveProviders();
+  const thinking = addAiBubble('', 'Nexus LP');
+  thinking.querySelector('.bubble').innerHTML = '<span class="tag">Nexus LP</span><span class="typing-dots"><span></span><span></span><span></span></span>';
 
-function resetMicUi(){
-  clearTimeout(micWatchdog);
-  listening = false;
-  micBtn.style.color = 'var(--sub)';
-  input.placeholder = defaultPlaceholder;
-}
-
-function micProblem(message){
-  if(micHandled) return;
-  micHandled = true;
-  resetMicUi();
-  alert(message);
-}
-const MIC_UNAVAILABLE = 'O microfone de voz não funciona neste app. Use o microfone do teclado do celular (ícone 🎙️ no teclado) pra ditar, ou abra o Nexus LP no Chrome.';
-
-micBtn.addEventListener('click', ()=>{
-  if(!SpeechRec){ micHandled = false; micProblem(MIC_UNAVAILABLE); return; }
-
-  if(listening){
-    // se já estava ouvindo, para; se travou sem nunca iniciar, avisa
-    if(nativeStarted){ try{ recognition.stop(); }catch(e){} }
-    else { try{ recognition.abort(); }catch(e){} micHandled = false; micProblem(MIC_UNAVAILABLE); }
+  if(providers.length === 0){
+    thinking.remove();
+    addErrorBubble('Nenhuma IA configurada', ['Abra o menu → Configurações e adicione pelo menos uma chave de API (Claude, Gemini ou Provedor extra).']);
     return;
   }
 
-  recognition = new SpeechRec();
-  recognition.lang = 'pt-BR';
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  listening = true; nativeStarted = false; nativeGotResult = false; micHandled = false;
-  micBtn.style.color = 'var(--accent)';
-  input.placeholder = 'Ouvindo...';
+  try{
+    const settled = await Promise.allSettled(providers.map(p => p.fn(currentMessages)));
+    const succeeded = [];
+    const failures = [];
+    settled.forEach((r, i) => {
+      if(r.status === 'fulfilled' && r.value?.trim()) succeeded.push({ name: providers[i].name, value: r.value.trim() });
+      else failures.push({ name: providers[i].name, message: r.reason?.message || 'Erro desconhecido' });
+    });
 
-  recognition.onstart = ()=>{ nativeStarted = true; clearTimeout(micWatchdog); };
-  recognition.onresult = (e)=>{
-    nativeGotResult = true;
-    const transcript = e.results[0][0].transcript;
-    input.value = (input.value ? input.value + ' ' : '') + transcript;
-    input.dispatchEvent(new Event('input'));
-  };
-  recognition.onend = ()=>{
-    const silentFail = !nativeStarted && !nativeGotResult && !micHandled;
-    resetMicUi();
-    if(silentFail) micProblem(MIC_UNAVAILABLE);
-  };
-  recognition.onerror = (e)=>{
-    if(e.error === 'no-speech' || e.error === 'aborted'){ resetMicUi(); return; }
-    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
-      micProblem('O microfone está sem permissão. Libere o microfone pra este site/app nas configurações do Android, ou use o microfone do teclado.');
+    if(succeeded.length === 0){
+      thinking.remove();
+      addErrorBubble('Todas as IAs falharam', failures.map(f => `${f.name}: ${f.message}`));
       return;
     }
-    if(e.error === 'network'){
-      micProblem('O reconhecimento de voz precisa de internet. Verifique sua conexão.');
-      return;
-    }
-    micProblem(MIC_UNAVAILABLE);
+
+    const finalAnswer = succeeded[0].value;
+    currentMessages.push({ role:'assistant', content: finalAnswer });
+    thinking.remove();
+    addAiBubble(finalAnswer, 'Nexus LP');
+    persistCurrentConversation();
+  }catch(e){
+    thinking.remove();
+    addErrorBubble('Erro crítico', [e.message]);
+  }
+}
+
+/* ===================== SPEECH & MIC (NATIVE) ===================== */
+function speakNative(text, btn){
+  const synth = window.speechSynthesis;
+  if(!synth){ alert('Leitura de voz não suportada neste dispositivo.'); return; }
+  if(synth.speaking){ synth.cancel(); btn.textContent = '🔊 Ouvir'; return; }
+  const clean = text.replace(/```[\s\S]*?```/g, ' código ').replace(/[*#`_]/g, '');
+  const u = new SpeechSynthesisUtterance(clean);
+  u.lang = 'pt-BR';
+  u.onstart = () => { btn.textContent = '⏸ Pausar'; };
+  u.onend = () => { btn.textContent = '🔊 Ouvir'; };
+  u.onerror = () => { btn.textContent = '🔊 Ouvir'; };
+  synth.speak(u);
+}
+
+function toggleMic(from){
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRec){ alert('Reconhecimento de voz não suportado. Use o microfone do teclado do celular.'); return; }
+  const rec = new SpeechRec();
+  rec.lang = 'pt-BR';
+  const inputEl = document.getElementById(from === 'home' ? 'inputHome' : 'inputChat');
+  rec.onresult = (e) => {
+    inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + e.results[0][0].transcript;
   };
+  rec.start();
+}
 
-  try{ recognition.start(); }catch(e){ micProblem(MIC_UNAVAILABLE); return; }
-  // WebView que finge ter reconhecimento de voz mas nunca inicia: avisa em vez de ficar travado
-  micWatchdog = setTimeout(()=>{
-    if(!nativeStarted){ try{ recognition.abort(); }catch(e){} micProblem(MIC_UNAVAILABLE); }
-  }, 7000);
-});
-
-// ---- PWA: registra o service worker (só em http/https) ----
-if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+function openPreviewMode(){
+  const lastCodeMsg = [...currentMessages].reverse().find(m => m.role === 'assistant' && m.content.includes('```'));
+  if(lastCodeMsg){
+    const match = lastCodeMsg.content.match(/```(?:html)?\n?([\s\S]*?)```/);
+    if(match) { openCodeSandbox(match[1]); return; }
+  }
+  alert('Nenhum código gerado ainda para visualizar no Preview.');
 }
 </script>
 </body>
